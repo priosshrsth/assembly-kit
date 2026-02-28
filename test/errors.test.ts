@@ -1,7 +1,5 @@
 import { describe, expect, it } from "bun:test";
 
-import { z } from "zod";
-
 import {
   AssemblyConnectionError,
   AssemblyError,
@@ -15,7 +13,8 @@ import {
   AssemblyServerError,
   AssemblyUnauthorizedError,
   AssemblyValidationError,
-} from "@/errors/index.ts";
+} from "src/errors/index";
+import { z } from "zod";
 
 describe("AssemblyError (base)", () => {
   it("has correct name, statusCode, and message", () => {

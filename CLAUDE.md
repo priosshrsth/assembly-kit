@@ -20,6 +20,8 @@ bun run release        # Bump version, commit, push, tag via bumpp
 
 Pre-commit hook (lefthook) auto-runs `bun x ultracite fix` on staged files.
 
+After any significant code change, always run `bun run lint` and `bun run fix` to ensure lint and formatting pass before committing.
+
 ## Architecture
 
 `assembly-kit` is a TypeScript-first SDK for the Assembly platform. It is an **ESM-only single package** with 4 entry points, targeting Node.js 18+, Node.js 24+, and Bun.

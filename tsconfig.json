@@ -5,12 +5,11 @@
     "moduleDetection": "force",
 
     "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "noEmit": true,
 
     "paths": {
-      "@/*": ["./src/*"]
+      "src/*": ["./src/*"]
     },
 
     "strict": true,

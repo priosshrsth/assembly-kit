@@ -1,4 +1,4 @@
-import { AssemblyError } from "@/errors/base.ts";
+import { AssemblyError } from "src/errors/base";
 
 export class AssemblyNoTokenError extends AssemblyError {
   constructor(messageOverride?: string, details?: unknown) {

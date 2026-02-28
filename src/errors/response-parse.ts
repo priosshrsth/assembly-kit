@@ -1,6 +1,5 @@
+import { AssemblyError } from "src/errors/base";
 import type { ZodError } from "zod";
-
-import { AssemblyError } from "@/errors/base.ts";
 
 export class AssemblyResponseParseError extends AssemblyError {
   readonly zodError: ZodError;

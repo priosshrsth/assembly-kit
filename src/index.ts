@@ -11,4 +11,4 @@ export {
   AssemblyServerError,
   AssemblyConnectionError,
   AssemblyResponseParseError,
-} from "@/errors/index.ts";
+} from "src/errors/index";
