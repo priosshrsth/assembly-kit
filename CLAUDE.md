@@ -49,6 +49,42 @@ src/app-bridge/      ← parallel track, no dependency on layers above
 src/react/           ← depends on app-bridge only
 ```
 
+### Zod Version
+
+This project uses **Zod 4** (`^4.3.6`). Do not use Zod 3 APIs.
+
+| Zod 3 (forbidden)      | Zod 4 (correct)          |
+| ---------------------- | ------------------------ |
+| `error.format()`       | `z.prettifyError(error)` |
+| `error.flatten()`      | `z.treeifyError(error)`  |
+| `import from "zod/v3"` | `import from "zod"`      |
+
+Always import from `"zod"` directly. `ZodError` can be imported as a type: `import type { ZodError } from "zod"`. Use `z.infer<typeof Schema>` for type inference.
+
+### TypeScript Requirements
+
+**`isolatedDeclarations` is enabled** in `tsconfig.json`. This means every exported binding must have an explicit type annotation — the compiler cannot infer types across module boundaries.
+
+```ts
+// ✗ Wrong — type must not be inferred
+export const BASE_URL = "https://api.assembly.com";
+
+// ✓ Correct — type explicitly declared
+export const BASE_URL: string = "https://api.assembly.com";
+
+// ✗ Wrong — return type must not be inferred
+export function createFoo(x: string) {
+  return { x };
+}
+
+// ✓ Correct — return type explicitly declared
+export function createFoo(x: string): { x: string } {
+  return { x };
+}
+```
+
+This applies to every `export const`, `export function`, `export class`, and `export type` in the codebase.
+
 ### Key Technical Decisions
 
 **HTTP:** `ky` (fetch-based, ESM). Auth header is `X-API-Key: <compoundKey>` — **not** `Authorization: Bearer`. Also send `X-Assembly-SDK-Version` on every request.

@@ -2,6 +2,15 @@
   "hooks": {
     "PostToolUse": [
       {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun tsc --noEmit --pretty 2>&1 | head -20"
+          }
+        ]
+      },
+      {
         "matcher": "Write|Edit",
         "hooks": [
           {

@@ -51,28 +51,30 @@ Legend: ✅ done · 🚧 in progress · ⬜ not started
 
 ---
 
-## Feature 2: Zod Schemas & Types
+## Feature 2: Zod Schemas & Types ✅
 
 > Dependency: Feature 1
 
-- ⬜ `src/schemas/base/company.ts`
-- ⬜ `src/schemas/base/client.ts`
-- ⬜ `src/schemas/base/internal-user.ts`
-- ⬜ `src/schemas/base/workspace.ts`
-- ⬜ `src/schemas/base/custom-field.ts`
-- ⬜ `src/schemas/base/token.ts` — `TokenPayloadSchema` (with `.strip()`)
-- ⬜ `src/schemas/base/hex-color.ts` — `HexColorSchema`
-- ⬜ Enum schemas: `CustomFieldTypeSchema`, `CustomFieldEntityTypeSchema`, `TaskStatusSchema`
-- ⬜ `src/schemas/responses/` — 7 response schemas (wrapping base schemas)
-- ⬜ `src/schemas/requests/` — 3 request schemas
-- ⬜ `src/schemas/index.ts` — barrel export (schemas entry point)
-- ⬜ `test/schemas.test.ts`
-  - ⬜ Valid shapes pass each schema
-  - ⬜ Missing required fields throw `ZodError`
-  - ⬜ `TokenPayloadSchema` strips unknown fields
-  - ⬜ `HexColorSchema` rejects invalid and accepts valid hex
-- ⬜ `bun run type-check` passes
-- ⬜ `bun test` passes
+- ✅ `src/schemas/base/company.ts`
+- ✅ `src/schemas/base/client.ts`
+- ✅ `src/schemas/base/internal-user.ts`
+- ✅ `src/schemas/base/workspace.ts`
+- ✅ `src/schemas/base/custom-field.ts`
+- ✅ `src/schemas/base/token.ts` — `TokenPayloadSchema` (strips unknown fields by default in Zod 4)
+- ✅ `src/schemas/base/hex-color.ts` — `HexColorSchema`
+- ✅ Enum schemas: `CustomFieldTypeSchema`, `CustomFieldEntityTypeSchema`, `TaskStatusSchema`
+- ✅ `src/schemas/responses/` — 7 response schemas (wrapping base schemas)
+- ✅ `src/schemas/requests/` — 3 request schemas
+- ✅ `src/schemas/index.ts` — barrel export (schemas entry point)
+- ✅ `test/schemas.test.ts` (48 tests passing)
+  - ✅ Valid shapes pass each schema
+  - ✅ Missing required fields fail validation
+  - ✅ `TokenPayloadSchema` strips unknown fields
+  - ✅ `HexColorSchema` rejects invalid and accepts valid hex
+- ✅ `bun run type-check` passes
+- ✅ `bun test` passes
+
+> **Note:** All exported schema `const`s are annotated with `z.ZodType<T>` using manually-defined interface types to satisfy `isolatedDeclarations: true`. Zod 4's `z.uuid()` enforces strict UUID format — test fixtures must use valid UUIDs.
 
 ---
 
