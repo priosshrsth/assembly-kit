@@ -30,6 +30,12 @@
         "default": "./dist/app-bridge/index.js"
       }
     },
+    "./schemas": {
+      "import": {
+        "types": "./dist/schemas/index.d.ts",
+        "default": "./dist/schemas/index.js"
+      }
+    },
     "./package.json": "./package.json"
   },
   "scripts": {
