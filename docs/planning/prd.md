@@ -57,12 +57,12 @@ assembly-kit
 
 ### 3.2 Entry Points (Export Map)
 
-| Export path               | Purpose                                             |
-| ------------------------- | --------------------------------------------------- |
-| `assembly-kit`            | Core client, token utilities, error classes         |
-| `assembly-kit/schemas`    | All Zod schemas and inferred TypeScript types       |
-| `assembly-kit/app-bridge` | Framework-agnostic postMessage utilities            |
-| `assembly-kit/react`      | React-specific app-bridge hooks (peer dep: `react`) |
+| Export path               | Purpose                                       |
+| ------------------------- | --------------------------------------------- |
+| `assembly-kit`            | Core client, token utilities, error classes   |
+| `assembly-kit/schemas`    | All Zod schemas and inferred TypeScript types |
+| `assembly-kit/app-bridge` | Framework-agnostic postMessage utilities      |
+| `assembly-kit/bridge-ui`  | React app-bridge hooks (peer dep: `react`)    |
 
 ---
 
@@ -371,7 +371,7 @@ React-specific wrappers over the app-bridge core, replacing the scattered `usePr
 
 **Requirements**
 
-Entry point: `assembly-kit/react`
+Entry point: `assembly-kit/bridge-ui`
 Peer dependency: `react >= 18`
 
 - `usePrimaryCta(cta: CtaConfig, opts?: BridgeOpts): void`
@@ -425,7 +425,10 @@ Peer dependency: `react >= 18`
         "import": "./dist/app-bridge.js",
         "types": "./dist/app-bridge.d.ts"
       },
-      "./react": { "import": "./dist/react.js", "types": "./dist/react.d.ts" }
+      "./bridge-ui": {
+        "import": "./dist/bridge-ui.js",
+        "types": "./dist/bridge-ui.d.ts"
+      }
     }
   }
   ```
@@ -623,6 +626,6 @@ React component mounts
 | 1   | Does `@assembly-js/node-sdk` expose token decoding without making a network call?                                                                                                      | **Resolved** — fully local, synchronous AES-128-CBC + HMAC-SHA256 using Node.js `crypto`. No network call. See `node-sdk-internals.md`.                                                                                       |
 | 2   | Should token decoding be reimplemented or delegated to `@assembly-js/node-sdk`?                                                                                                        | **Resolved** — reimplement. The algorithm is simple (4 lines of Node.js `crypto`), the package uses yarn/CJS internals, and we should avoid the singleton `OpenAPI` object entirely. Full details in `node-sdk-internals.md`. |
 | 3   | What is the exact format of the `Retry-After` header from Assembly's 429 responses?                                                                                                    | Needs verification against API docs                                                                                                                                                                                           |
-| 4   | Should `assembly-kit/react` be a separate npm package (`assembly-kit-react`) to avoid shipping React as a dep for pure server users?                                                   | Decision needed                                                                                                                                                                                                               |
+| 4   | Should `assembly-kit/bridge-ui` be a separate npm package to avoid shipping React as a dep for pure server users?                                                                      | Decision needed                                                                                                                                                                                                               |
 | 5   | Tasks endpoint (`/tasks/public`) uses a custom token encoding — should `encodePayload` from crypto utils be part of assembly-kit or remain app-specific?                               | Decision needed                                                                                                                                                                                                               |
 | 6   | For custom apps with no token provided, only local/staging envs are supported by the existing SDK. Does Assembly's production API accept a raw `apiKey` without a compound key at all? | Needs verification                                                                                                                                                                                                            |

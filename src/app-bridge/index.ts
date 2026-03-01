@@ -1,4 +1,6 @@
 export { DASHBOARD_DOMAINS } from "src/app-bridge/constants";
+export { ensureHttps } from "src/app-bridge/ensure-https";
+export { isAllowedOrigin } from "src/app-bridge/is-allowed-origin";
 export { sendToParent } from "src/app-bridge/send";
 export { Icons } from "src/app-bridge/types";
 export type {

@@ -10,6 +10,7 @@ const bunupConfig = defineConfig({
     "src/schemas/responses/index.ts",
     "src/schemas/requests/index.ts",
     "src/errors/index.ts",
+    "src/bridge-ui/index.ts",
   ],
   format: "esm",
   minify: true,
