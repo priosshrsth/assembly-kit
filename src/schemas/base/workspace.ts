@@ -11,7 +11,8 @@ export interface Workspace {
     individualTerm?: string;
     individualTermPlural?: string;
   };
-  portalUrl: string;
+  object: "workspace";
+  portalUrl?: string;
 }
 
 export const WorkspaceSchema: z.ZodType<Workspace> = z.object({
@@ -27,5 +28,6 @@ export const WorkspaceSchema: z.ZodType<Workspace> = z.object({
       individualTermPlural: z.string().optional(),
     })
     .optional(),
-  portalUrl: z.string(),
+  object: z.literal("workspace"),
+  portalUrl: z.string().optional(),
 });

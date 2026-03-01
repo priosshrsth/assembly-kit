@@ -12,7 +12,7 @@ import {
   HexColorSchema,
   InternalUserSchema,
   ListCustomFieldResponseSchema,
-  NotificationRequestBodySchema,
+  NotificationCreateRequestSchema,
   NotificationsResponseSchema,
   TaskStatusSchema,
   TasksResponseSchema,
@@ -215,7 +215,7 @@ describe("WorkspaceSchema", () => {
   it("accepts a minimal workspace", () => {
     const result = WorkspaceSchema.safeParse({
       id: "ws1",
-      portalUrl: "https://portal.example.com",
+      object: "workspace",
     });
     expect(result.success).toBe(true);
   });
@@ -225,13 +225,15 @@ describe("WorkspaceSchema", () => {
       brandName: "Acme",
       font: "Inter",
       id: "ws1",
+      industry: "technology",
       labels: { individualTerm: "Member" },
+      object: "workspace",
       portalUrl: "https://portal.example.com",
     });
     expect(result.success).toBe(true);
   });
 
-  it("rejects missing portalUrl", () => {
+  it("rejects missing object literal", () => {
     expect(WorkspaceSchema.safeParse({ id: "ws1" }).success).toBe(false);
   });
 });
@@ -299,14 +301,14 @@ describe("CustomFieldSchema", () => {
 // ─── TaskStatusSchema ─────────────────────────────────────────────────────────
 
 describe("TaskStatusSchema", () => {
-  it("accepts todo, inProgress, completed", () => {
+  it("accepts todo, inProgress, done", () => {
     expect(TaskStatusSchema.safeParse("todo").success).toBe(true);
     expect(TaskStatusSchema.safeParse("inProgress").success).toBe(true);
-    expect(TaskStatusSchema.safeParse("completed").success).toBe(true);
+    expect(TaskStatusSchema.safeParse("done").success).toBe(true);
   });
 
   it("rejects unknown status", () => {
-    expect(TaskStatusSchema.safeParse("done").success).toBe(false);
+    expect(TaskStatusSchema.safeParse("completed").success).toBe(false);
   });
 });
 
@@ -343,14 +345,22 @@ describe("NotificationsResponseSchema", () => {
     const result = NotificationsResponseSchema.safeParse({
       data: [
         {
-          event: "message.created",
+          createdAt: "2024-01-01T00:00:00.000Z",
           id: "n1",
-          recipientClientId: "550e8400-e29b-41d4-a716-446655440000",
-          recipientCompanyId: null,
+          isRead: false,
+          object: "notification" as const,
+          recipientId: "550e8400-e29b-41d4-a716-446655440000",
+          senderId: "u1",
         },
       ],
     });
     expect(result.success).toBe(true);
+  });
+
+  it("accepts null data", () => {
+    expect(NotificationsResponseSchema.safeParse({ data: null }).success).toBe(
+      true
+    );
   });
 });
 
@@ -376,7 +386,22 @@ describe("ListCustomFieldResponseSchema", () => {
 describe("TasksResponseSchema", () => {
   it("accepts a task list", () => {
     const result = TasksResponseSchema.safeParse({
-      data: [{ status: "todo" }, { status: "completed" }],
+      data: [
+        {
+          createdAt: "2024-01-01T00:00:00.000Z",
+          id: "t1",
+          object: "task" as const,
+          status: "todo",
+          updatedAt: "2024-01-02T00:00:00.000Z",
+        },
+        {
+          createdAt: "2024-01-01T00:00:00.000Z",
+          id: "t2",
+          object: "task" as const,
+          status: "done",
+          updatedAt: "2024-01-02T00:00:00.000Z",
+        },
+      ],
     });
     expect(result.success).toBe(true);
   });
@@ -434,33 +459,37 @@ describe("CompanyCreateRequestSchema", () => {
   });
 });
 
-describe("NotificationRequestBodySchema", () => {
-  it("accepts a minimal valid notification request", () => {
-    const result = NotificationRequestBodySchema.safeParse({
-      recipientClientId: "c1",
+describe("NotificationCreateRequestSchema", () => {
+  it("accepts a valid notification create request", () => {
+    const result = NotificationCreateRequestSchema.safeParse({
+      deliveryTargets: {
+        inProduct: {
+          body: "An action was completed.",
+          title: "Action completed",
+        },
+      },
+      recipientId: "c1",
       senderId: "u1",
-      senderType: "internalUser",
     });
     expect(result.success).toBe(true);
   });
 
-  it("rejects invalid senderType", () => {
-    const result = NotificationRequestBodySchema.safeParse({
-      recipientClientId: "c1",
+  it("rejects missing deliveryTargets", () => {
+    const result = NotificationCreateRequestSchema.safeParse({
+      recipientId: "c1",
       senderId: "u1",
-      senderType: "bot",
     });
     expect(result.success).toBe(false);
   });
 
-  it("accepts deliveryTargets with inProduct payload", () => {
-    const result = NotificationRequestBodySchema.safeParse({
+  it("accepts deliveryTargets with email target", () => {
+    const result = NotificationCreateRequestSchema.safeParse({
       deliveryTargets: {
+        email: { body: "Email body", subject: "Subject" },
         inProduct: { body: "World", title: "Hello" },
       },
-      recipientClientId: "c1",
+      recipientId: "c1",
       senderId: "u1",
-      senderType: "internalUser",
     });
     expect(result.success).toBe(true);
   });

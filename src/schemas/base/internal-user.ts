@@ -11,6 +11,7 @@ export interface InternalUser {
   id: string;
   isClientAccessLimited: boolean;
   object: "internalUser";
+  role?: string;
 }
 
 export const InternalUserSchema: z.ZodType<InternalUser> = z.object({
@@ -25,4 +26,5 @@ export const InternalUserSchema: z.ZodType<InternalUser> = z.object({
   id: z.string(),
   isClientAccessLimited: z.boolean().default(false),
   object: z.literal("internalUser"),
+  role: z.string().optional(),
 });

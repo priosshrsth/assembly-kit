@@ -1,43 +1,34 @@
 import { z } from "zod";
 
-type NotificationSender = "client" | "internalUser";
-
-const NotificationSenderSchema: z.ZodType<NotificationSender> = z.enum([
-  "internalUser",
-  "client",
-]);
-
-export interface NotificationRequestBody {
-  deliveryTargets?: {
-    inProduct?: {
+export interface NotificationCreateRequest {
+  deliveryTargets: {
+    email?: {
       body?: string;
+      subject?: string;
+    };
+    inProduct: {
+      body: string;
       title: string;
     };
   };
-  recipientClientId?: string;
-  recipientCompanyId?: string;
-  recipientInternalUserId?: string;
-  senderCompanyId?: string;
+  recipientId: string;
   senderId: string;
-  senderType: NotificationSender;
 }
 
-export const NotificationRequestBodySchema: z.ZodType<NotificationRequestBody> =
+export const NotificationCreateRequestSchema: z.ZodType<NotificationCreateRequest> =
   z.object({
-    deliveryTargets: z
-      .object({
-        inProduct: z
-          .object({
-            body: z.string().optional(),
-            title: z.string(),
-          })
-          .optional(),
-      })
-      .optional(),
-    recipientClientId: z.string().optional(),
-    recipientCompanyId: z.string().optional(),
-    recipientInternalUserId: z.string().optional(),
-    senderCompanyId: z.string().optional(),
+    deliveryTargets: z.object({
+      email: z
+        .object({
+          body: z.string().optional(),
+          subject: z.string().optional(),
+        })
+        .optional(),
+      inProduct: z.object({
+        body: z.string(),
+        title: z.string(),
+      }),
+    }),
+    recipientId: z.string(),
     senderId: z.string(),
-    senderType: NotificationSenderSchema,
   });

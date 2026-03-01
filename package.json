@@ -36,23 +36,40 @@
         "default": "./dist/schemas/index.js"
       }
     },
+    "./schemas/base": {
+      "import": {
+        "types": "./dist/schemas/base/index.d.ts",
+        "default": "./dist/schemas/base/index.js"
+      }
+    },
+    "./schemas/responses": {
+      "import": {
+        "types": "./dist/schemas/responses/index.d.ts",
+        "default": "./dist/schemas/responses/index.js"
+      }
+    },
+    "./schemas/requests": {
+      "import": {
+        "types": "./dist/schemas/requests/index.d.ts",
+        "default": "./dist/schemas/requests/index.js"
+      }
+    },
     "./package.json": "./package.json"
   },
   "scripts": {
     "build": "bunup",
     "dev": "bunup --watch",
-    "format": "oxfmt",
-    "lint": "oxlint",
+    "format": "ultracite fix",
+    "lint": "ultracite check",
     "prepare": "lefthook install",
     "release": "bumpp --commit --push --tag",
     "test": "bun test",
     "test:coverage": "bun test --coverage",
     "test:watch": "bun test --watch",
-    "type-check": "tsc --noEmit",
-    "check": "ultracite check",
-    "fix": "ultracite fix"
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@assembly-js/node-sdk": "^3.19.1",
     "zod": "^4.3.6"
   },
   "devDependencies": {

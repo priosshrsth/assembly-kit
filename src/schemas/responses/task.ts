@@ -1,21 +1,14 @@
+import { TaskSchema } from "src/schemas/base/task";
+import type { Task } from "src/schemas/base/task";
 import { z } from "zod";
 
-export type TaskStatus = "completed" | "inProgress" | "todo";
-
-export const TaskStatusSchema: z.ZodType<TaskStatus> = z.enum([
-  "todo",
-  "inProgress",
-  "completed",
-]);
+export { TaskSchema as TaskResponseSchema };
+export type { Task as TaskResponse };
 
 export interface TasksResponse {
-  data: { status: TaskStatus }[];
+  data: Task[] | null;
 }
 
 export const TasksResponseSchema: z.ZodType<TasksResponse> = z.object({
-  data: z
-    .object({
-      status: TaskStatusSchema,
-    })
-    .array(),
+  data: z.array(TaskSchema).nullable(),
 });

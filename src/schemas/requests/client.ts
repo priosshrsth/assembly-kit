@@ -1,7 +1,8 @@
 import { z } from "zod";
 
 export interface ClientCreateRequest {
-  companyId?: string;
+  companyIds?: string[];
+  customFields?: Record<string, unknown>;
   email: string;
   familyName: string;
   givenName: string;
@@ -9,7 +10,8 @@ export interface ClientCreateRequest {
 
 export const ClientCreateRequestSchema: z.ZodType<ClientCreateRequest> =
   z.object({
-    companyId: z.uuid().optional(),
+    companyIds: z.array(z.string()).optional(),
+    customFields: z.record(z.string(), z.unknown()).optional(),
     email: z.email(),
     familyName: z.string(),
     givenName: z.string(),
