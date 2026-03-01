@@ -162,6 +162,91 @@ import { ClientsResponseSchema } from "assembly-kit/schemas/responses";
 import { ClientCreateRequestSchema } from "assembly-kit/schemas/requests";
 ```
 
+### Token Utilities
+
+Parse and validate encrypted Assembly tokens, build compound API keys, and narrow token payloads to client or internal user types.
+
+#### `parseToken`
+
+Decrypt and validate a token using your API key. Returns the typed `TokenPayload`:
+
+```typescript
+import { parseToken } from "assembly-kit";
+
+const payload = parseToken({ token: encryptedTokenHex, apiKey });
+// payload.workspaceId — always present
+// payload.clientId    — present for client (portal) users
+// payload.companyId   — present for client users
+// payload.internalUserId — present for internal (team member) users
+// payload.tokenId     — present in some marketplace tokens
+// payload.baseUrl     — overrides the API base URL if set
+```
+
+Throws `AssemblyNoTokenError` if the token is missing, or `AssemblyInvalidTokenError` if decryption/validation fails.
+
+#### `createToken`
+
+Encrypt a `TokenPayload` into a hex-encoded token string (the inverse of `parseToken`):
+
+```typescript
+import { createToken } from "assembly-kit";
+
+const token = createToken({
+  payload: {
+    workspaceId: "ws-123",
+    clientId: "cl-456",
+    companyId: "co-789",
+  },
+  apiKey,
+});
+// token is a hex-encoded AES-128-CBC encrypted string
+```
+
+The payload is validated against `TokenPayloadSchema` before encryption. Throws `AssemblyInvalidTokenError` if validation fails. Each call produces a different ciphertext (random IV).
+
+#### `buildCompoundKey`
+
+Build the compound API key for the `X-API-Key` header:
+
+```typescript
+import { buildCompoundKey } from "assembly-kit";
+
+const key = buildCompoundKey({ apiKey, payload });
+// With tokenId:    "workspaceId/apiKey/tokenId"
+// Without tokenId: "workspaceId/apiKey"
+```
+
+#### Type guards
+
+Narrow a `TokenPayload` to a specific user type:
+
+```typescript
+import {
+  isClientToken,
+  isInternalUserToken,
+  ensureIsClient,
+  ensureIsInternalUser,
+} from "assembly-kit";
+import type {
+  ClientTokenPayload,
+  InternalUserTokenPayload,
+} from "assembly-kit";
+
+// Type predicates (return boolean)
+if (isClientToken(payload)) {
+  payload.clientId; // string (narrowed)
+  payload.companyId; // string (narrowed)
+}
+
+if (isInternalUserToken(payload)) {
+  payload.internalUserId; // string (narrowed)
+}
+
+// Throwing guards (return narrowed type or throw AssemblyUnauthorizedError)
+const client = ensureIsClient(payload);
+const internal = ensureIsInternalUser(payload);
+```
+
 ### App Bridge
 
 The app-bridge entry point provides framework-agnostic utilities for communicating with the Assembly dashboard from an embedded iframe app. Works in any JavaScript environment — no React dependency required.
