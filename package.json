@@ -24,6 +24,12 @@
         "default": "./dist/index.js"
       }
     },
+    "./app-bridge": {
+      "import": {
+        "types": "./dist/app-bridge/index.d.ts",
+        "default": "./dist/app-bridge/index.js"
+      }
+    },
     "./package.json": "./package.json"
   },
   "scripts": {

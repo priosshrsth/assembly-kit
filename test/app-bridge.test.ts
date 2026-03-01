@@ -1,22 +1,25 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 
 import { DASHBOARD_DOMAINS, Icons, sendToParent } from "src/app-bridge";
 import type { ActionsMenuPayload, PrimaryCtaPayload } from "src/app-bridge";
 
-// ─── helpers ─────────────────────────────────────────────────────────────────
+// ─── call tracker ─────────────────────────────────────────────────────────────
 
-type PostMessageMock = ReturnType<
-  typeof mock<(data: unknown, origin: string) => void>
->;
+interface Call {
+  data: unknown;
+  origin: string;
+}
 
-const setupWindow = (): PostMessageMock => {
-  const postMessage = mock<(data: unknown, origin: string) => void>(
-    (_data, _origin) => {}
-  );
+const setupWindow = (): Call[] => {
+  const calls: Call[] = [];
   (globalThis as unknown as { window: unknown }).window = {
-    parent: { postMessage },
+    parent: {
+      postMessage: (data: unknown, origin: string) => {
+        calls.push({ data, origin });
+      },
+    },
   };
-  return postMessage;
+  return calls;
 };
 
 const teardownWindow = (): void => {
@@ -26,10 +29,10 @@ const teardownWindow = (): void => {
 // ─── sendToParent ─────────────────────────────────────────────────────────────
 
 describe("sendToParent — browser environment", () => {
-  let postMessage: PostMessageMock;
+  let calls: Call[];
 
   beforeEach(() => {
-    postMessage = setupWindow();
+    calls = setupWindow();
   });
 
   afterEach(() => {
@@ -43,36 +46,36 @@ describe("sendToParent — browser environment", () => {
 
   it("posts to every DASHBOARD_DOMAIN when no portalUrl given", () => {
     sendToParent(payload);
-    expect(postMessage).toHaveBeenCalledTimes(DASHBOARD_DOMAINS.length);
+    expect(calls).toHaveLength(DASHBOARD_DOMAINS.length);
     for (const domain of DASHBOARD_DOMAINS) {
-      expect(postMessage).toHaveBeenCalledWith(payload, domain);
+      expect(calls).toContainEqual({ data: payload, origin: domain });
     }
   });
 
   it("posts only to the given portalUrl", () => {
     sendToParent(payload, "https://my-portal.example.com");
-    expect(postMessage).toHaveBeenCalledTimes(1);
-    expect(postMessage).toHaveBeenCalledWith(
-      payload,
-      "https://my-portal.example.com"
-    );
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toEqual({
+      data: payload,
+      origin: "https://my-portal.example.com",
+    });
   });
 
   it("upgrades http:// portalUrl to https://", () => {
     sendToParent(payload, "http://my-portal.example.com");
-    expect(postMessage).toHaveBeenCalledTimes(1);
-    expect(postMessage).toHaveBeenCalledWith(
-      payload,
-      "https://my-portal.example.com"
-    );
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toEqual({
+      data: payload,
+      origin: "https://my-portal.example.com",
+    });
   });
 
   it("leaves https:// portalUrl unchanged", () => {
     sendToParent(payload, "https://my-portal.example.com");
-    expect(postMessage).toHaveBeenCalledWith(
-      payload,
-      "https://my-portal.example.com"
-    );
+    expect(calls[0]).toEqual({
+      data: payload,
+      origin: "https://my-portal.example.com",
+    });
   });
 
   it("forwards the full payload object to postMessage", () => {
@@ -83,13 +86,12 @@ describe("sendToParent — browser environment", () => {
       type: "header.actionsMenu",
     };
     sendToParent(menu);
-    expect(postMessage).toHaveBeenCalledWith(menu, DASHBOARD_DOMAINS[0]);
+    expect(calls[0]).toEqual({ data: menu, origin: DASHBOARD_DOMAINS[0] });
   });
 });
 
 describe("sendToParent — SSR environment", () => {
   it("is a no-op and does not throw when window is undefined", () => {
-    // In bun's test runner, window is not defined — mirrors SSR behaviour.
     expect(() => sendToParent({ type: "header.primaryCta" })).not.toThrow();
   });
 });
