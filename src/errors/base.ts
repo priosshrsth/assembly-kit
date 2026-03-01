@@ -1,6 +1,12 @@
 export interface AssemblyErrorOptions {
+  /**
+   * Override the default message for this error class.
+   * Each subclass provides a sensible default, so this is rarely needed.
+   */
   message?: string;
+  /** The original error that caused this one, forwarded to native Error.cause. */
   cause?: unknown;
+  /** Arbitrary extra context (e.g. raw response body) for debugging. */
   details?: unknown;
 }
 

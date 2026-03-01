@@ -11,17 +11,23 @@ export interface AssemblyResponseParseErrorOptions extends Omit<
 }
 
 export class AssemblyResponseParseError extends AssemblyError {
-  declare readonly cause: ZodError;
   readonly validationErrors: string;
 
-  constructor({ message, ...rest }: AssemblyResponseParseErrorOptions) {
+  constructor({ message, cause, details }: AssemblyResponseParseErrorOptions) {
     super({
+      cause,
+      details,
       message:
         message ?? "Assembly API response did not match the expected schema",
       statusCode: 500,
-      ...rest,
     });
     this.name = "AssemblyResponseParseError";
-    this.validationErrors = z.prettifyError(rest.cause);
+    this.validationErrors = z.prettifyError(cause);
+  }
+
+  // Narrows the inherited Error.cause to ZodError — safe because the
+  // constructor enforces cause: ZodError at the call site.
+  override get cause(): ZodError {
+    return super.cause as ZodError;
   }
 }
