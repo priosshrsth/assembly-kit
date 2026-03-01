@@ -11,10 +11,10 @@ Legend: ✅ done · 🚧 in progress · ⬜ not started
 - ✅ Repo & tooling bootstrap (bunup, tsconfig, lefthook, oxlint, ultracite)
 - ✅ `src/index.ts` — exports all error classes
 - ✅ `src` path alias (`@/*`) configured in tsconfig.json
-- ✅ `bunup.config.ts` — 4 entry points (index, schemas, app-bridge, react)
+- ✅ `bunup.config.ts` — 4 entry points (index, schemas, app-bridge, bridge-ui)
 - ✅ Runtime deps: `zod` installed
 - ⬜ Runtime deps: `ky`, `p-throttle` (needed for Feature 4)
-- ✅ Entry point stubs: `src/schemas/index.ts`, `src/app-bridge/index.ts`, `src/react/index.ts`
+- ✅ Entry point stubs: `src/schemas/index.ts`, `src/app-bridge/index.ts`, `src/bridge-ui/index.ts`
 - ⬜ Test fixtures: `test/fixtures/tokens.ts` (encrypted token constants for token tests)
 
 ---
@@ -206,12 +206,12 @@ Legend: ✅ done · 🚧 in progress · ⬜ not started
 
 > Dependency: Feature 7 · Peer dep: `react >= 18`
 
-- ⬜ `src/react/use-primary-cta.ts`
-- ⬜ `src/react/use-secondary-cta.ts`
-- ⬜ `src/react/use-actions-menu.ts`
-- ⬜ `src/react/index.ts` — barrel export with `"use client"` directive
-- ⬜ TypeScript compile-time check that hooks accept correct types
-- ⬜ `bun run type-check` passes
+- ✅ `src/bridge-ui/use-primary-cta.ts`
+- ✅ `src/bridge-ui/use-secondary-cta.ts`
+- ✅ `src/bridge-ui/use-actions-menu.ts`
+- ✅ `src/bridge-ui/index.ts` — barrel export with `"use client"` directive
+- ✅ TypeScript compile-time check that hooks accept correct types
+- ✅ `bun run type-check` passes
 
 ---
 

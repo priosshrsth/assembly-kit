@@ -39,7 +39,7 @@ This is a feature-by-feature implementation plan. Each feature is a self-contain
 5. Create `.ultracite.json` or equivalent formatter config.
 6. Create top-level `src/`, `tests/`, and `tests/fixtures/` directories.
 
-> **Runtime compatibility rule (applies to all features):** Always import crypto as `node:crypto` (explicit protocol prefix). Bun and Node.js 18/24 both honour the `node:` prefix. Never use bare `'crypto'`. Do not use any Node.js APIs that Bun does not implement — this SDK only needs `node:crypto` (AES-128-CBC + HMAC-SHA256), which Bun supports natively. 7. Create `src/index.ts`, `src/schemas/index.ts`, `src/app-bridge/index.ts`, `src/react/index.ts` as empty stubs. 8. Generate token test fixtures: using the `@assembly-js/node-sdk` crypto functions, generate 3-4 encrypted token strings (client user, internal user, with tokenId, with baseUrl) for a fixed test apiKey. Save to `tests/fixtures/tokens.ts` as constants. These are used by all token-related tests without mocking crypto. 8. Verify: `bun build src/index.ts --outdir dist` succeeds. 9. Verify: `bun test` runs (zero tests, zero failures).
+> **Runtime compatibility rule (applies to all features):** Always import crypto as `node:crypto` (explicit protocol prefix). Bun and Node.js 18/24 both honour the `node:` prefix. Never use bare `'crypto'`. Do not use any Node.js APIs that Bun does not implement — this SDK only needs `node:crypto` (AES-128-CBC + HMAC-SHA256), which Bun supports natively. 7. Create `src/index.ts`, `src/schemas/index.ts`, `src/app-bridge/index.ts`, `src/bridge-ui/index.ts` as empty stubs. 8. Generate token test fixtures: using the `@assembly-js/node-sdk` crypto functions, generate 3-4 encrypted token strings (client user, internal user, with tokenId, with baseUrl) for a fixed test apiKey. Save to `tests/fixtures/tokens.ts` as constants. These are used by all token-related tests without mocking crypto. 8. Verify: `bun build src/index.ts --outdir dist` succeeds. 9. Verify: `bun test` runs (zero tests, zero failures).
 
 **Definition of Done:**
 
@@ -707,7 +707,7 @@ React hooks wrapping the app-bridge core. Shipped as a separate entry point so R
 ### Files to create
 
 ```
-src/react/
+src/bridge-ui/
 ├── index.ts
 ├── use-primary-cta.ts
 ├── use-secondary-cta.ts
@@ -718,7 +718,7 @@ src/react/
 
 **8.1 — `usePrimaryCta`**
 
-`src/react/use-primary-cta.ts`:
+`src/bridge-ui/use-primary-cta.ts`:
 
 - Accept `(cta: CtaConfig, opts?: BridgeOpts)`.
 - `useEffect` (deps: `cta`, `opts.portalUrl`, `opts.show`):
@@ -741,7 +741,7 @@ Similar: sends `header.actionsMenu` with items array. No click listener needed (
 
 **8.4 — Barrel export**
 
-`src/react/index.ts` exports all hooks.
+`src/bridge-ui/index.ts` exports all hooks.
 
 ### Tests
 
@@ -777,9 +777,9 @@ Final build config, export map, and type declarations.
       "import": "./dist/app-bridge/index.js",
       "types": "./dist/app-bridge/index.d.ts"
     },
-    "./react": {
-      "import": "./dist/react/index.js",
-      "types": "./dist/react/index.d.ts"
+    "./bridge-ui": {
+      "import": "./dist/bridge-ui/index.js",
+      "types": "./dist/bridge-ui/index.d.ts"
     }
   },
   "sideEffects": false
@@ -882,6 +882,6 @@ The overall project is ready for `1.0.0` publish when:
 | `@assembly-js/node-sdk` token decode is async / hits Assembly API                   | Feature 3 must verify this. If it requires a network call, `parseToken()` becomes async and all callers update. |
 | `@assembly-js/node-sdk` not suitable as a dependency (license / size)               | Reimplement token decode using Assembly's documented JWT format.                                                |
 | `p-throttle` sliding window behavior differs from Assembly's exact rate limit model | Run load tests against staging; fall back to `bottleneck` with a larger `minTime` only if needed.               |
-| React hooks export causes issues with RSC (React Server Components)                 | Add `"use client"` directive at the top of `src/react/index.ts`.                                                |
+| React hooks export causes issues with RSC (React Server Components)                 | Add `"use client"` directive at the top of `src/bridge-ui/index.ts`.                                            |
 | Zod version conflicts in consuming apps                                             | Pin `zod` as a peer dependency; document compatibility.                                                         |
 | Assembly API response shapes change without notice                                  | `validateResponses` flag gives teams an escape hatch; `AssemblyResponseParseError` is easy to catch.            |

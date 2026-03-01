@@ -22,6 +22,16 @@ Pre-commit hook (lefthook) auto-runs `bun x ultracite fix` on staged files.
 
 After any significant code change, always run `bun run lint` and `bun run fix` to ensure lint and formatting pass before committing.
 
+## Documentation Rules
+
+After any significant code change, update the following:
+
+1. **`docs/progress.md`** — mark completed features, update status
+2. **`README.md`** — keep usage examples and API docs current
+3. **Feature-specific docs** — if README.md grows too large, create docs under `docs/` (e.g. `docs/app-bridge.md`) and link from the main README
+
+Always keep docs in sync with the code. Do not defer documentation to a later step.
+
 ## Architecture
 
 `assembly-kit` is a TypeScript-first SDK for the Assembly platform. It is an **ESM-only single package** with 4 entry points, targeting Node.js 18+, Node.js 24+, and Bun.
@@ -33,7 +43,7 @@ After any significant code change, always run `bun run lint` and `bun run fix` t
 | `assembly-kit`            | `createClient()`, error classes, token utilities, `paginate()`                         |
 | `assembly-kit/schemas`    | All Zod schemas and inferred types (no client dependency)                              |
 | `assembly-kit/app-bridge` | Framework-agnostic `sendToParent()` postMessage utilities                              |
-| `assembly-kit/react`      | React hooks wrapping app-bridge (`usePrimaryCta`, `useSecondaryCta`, `useActionsMenu`) |
+| `assembly-kit/bridge-ui`  | React hooks wrapping app-bridge (`usePrimaryCta`, `useSecondaryCta`, `useActionsMenu`) |
 
 ### Source Layer Dependency Order
 
@@ -46,7 +56,7 @@ src/pagination/      ← paginate() AsyncIterable cursor helper
 src/client/          ← createClient() factory + AssemblyClient class
 src/resources/       ← workspace, clients, companies, internalUsers, notifications, customFields, tasks, token
 src/app-bridge/      ← parallel track, no dependency on layers above
-src/react/           ← depends on app-bridge only
+src/bridge-ui/       ← depends on app-bridge only
 ```
 
 ### Zod Version

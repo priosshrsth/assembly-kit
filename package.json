@@ -54,6 +54,12 @@
         "default": "./dist/schemas/requests/index.js"
       }
     },
+    "./bridge-ui": {
+      "import": {
+        "types": "./dist/bridge-ui/index.d.ts",
+        "default": "./dist/bridge-ui/index.js"
+      }
+    },
     "./package.json": "./package.json"
   },
   "scripts": {
@@ -74,6 +80,7 @@
   },
   "devDependencies": {
     "@types/bun": "^1.3.9",
+    "@types/react": "^19.2.14",
     "bumpp": "^10.4.1",
     "bunup": "^0.16.31",
     "lefthook": "^2.1.1",
@@ -84,9 +91,13 @@
     "ultracite": "7.2.4"
   },
   "peerDependencies": {
+    "react": ">=18",
     "typescript": ">=4.5.0"
   },
   "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
     "typescript": {
       "optional": true
     }
