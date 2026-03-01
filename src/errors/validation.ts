@@ -1,12 +1,14 @@
 import { AssemblyError } from "src/errors/base";
+import type { AssemblyErrorOptions } from "src/errors/base";
 
 export class AssemblyValidationError extends AssemblyError {
-  constructor(messageOverride?: string, details?: unknown) {
-    super(
-      messageOverride ?? "The request payload was rejected by the Assembly API",
-      422,
-      details
-    );
+  constructor({ message, ...rest }: AssemblyErrorOptions = {}) {
+    super({
+      message:
+        message ?? "The request payload was rejected by the Assembly API",
+      statusCode: 422,
+      ...rest,
+    });
     this.name = "AssemblyValidationError";
   }
 }

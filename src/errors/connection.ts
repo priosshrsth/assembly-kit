@@ -1,13 +1,15 @@
+import type { AssemblyErrorOptions } from "src/errors/base";
 import { AssemblyError } from "src/errors/base";
 
 export class AssemblyConnectionError extends AssemblyError {
-  constructor(messageOverride?: string, details?: unknown) {
-    super(
-      messageOverride ??
+  constructor({ message, ...rest }: AssemblyErrorOptions = {}) {
+    super({
+      message:
+        message ??
         "A network error occurred while connecting to the Assembly API",
-      503,
-      details
-    );
+      statusCode: 503,
+      ...rest,
+    });
     this.name = "AssemblyConnectionError";
   }
 }

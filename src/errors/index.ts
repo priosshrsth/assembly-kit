@@ -1,4 +1,5 @@
 export { AssemblyError } from "src/errors/base";
+export type { AssemblyErrorOptions } from "src/errors/base";
 export { AssemblyConnectionError } from "src/errors/connection";
 export { AssemblyForbiddenError } from "src/errors/forbidden";
 export { AssemblyInvalidTokenError } from "src/errors/invalid-token";
@@ -6,7 +7,9 @@ export { AssemblyMissingApiKeyError } from "src/errors/missing-api-key";
 export { AssemblyNoTokenError } from "src/errors/no-token";
 export { AssemblyNotFoundError } from "src/errors/not-found";
 export { AssemblyRateLimitError } from "src/errors/rate-limit";
+export type { AssemblyRateLimitErrorOptions } from "src/errors/rate-limit";
 export { AssemblyResponseParseError } from "src/errors/response-parse";
+export type { AssemblyResponseParseErrorOptions } from "src/errors/response-parse";
 export { AssemblyServerError } from "src/errors/server";
 export { AssemblyUnauthorizedError } from "src/errors/unauthorized";
 export { AssemblyValidationError } from "src/errors/validation";
