@@ -180,21 +180,23 @@ Legend: ✅ done · 🚧 in progress · ⬜ not started
 
 ---
 
-## Feature 7: App Bridge (Framework-Agnostic)
+## Feature 7: App Bridge (Framework-Agnostic) ✅
 
 > No dependency on core SDK layers (parallel track)
 
-- ⬜ `src/app-bridge/constants.ts` — `DASHBOARD_DOMAINS`
-- ⬜ `src/app-bridge/types.ts` — `Icons`, `AppBridgePayload` (discriminated union), `CtaConfig`, `ActionItem`, `BridgeOpts`
-- ⬜ `src/app-bridge/send.ts` — `sendToParent(payload, portalUrl?)` — SSR-safe
-- ⬜ `src/app-bridge/index.ts` — barrel export
-- ⬜ `test/app-bridge.test.ts`
-  - ⬜ With `portalUrl` → `postMessage` called once with that origin
-  - ⬜ Without `portalUrl` → called once per `DASHBOARD_DOMAINS` entry
-  - ⬜ SSR (`window === undefined`) → no throw, no calls
-  - ⬜ `ensureHttps` converts `http://` to `https://`
-- ⬜ `bun run type-check` passes
-- ⬜ `bun test` passes
+- ✅ `src/app-bridge/constants.ts` — `DASHBOARD_DOMAINS`
+- ✅ `src/app-bridge/types.ts` — `Icons`, `AppBridgePayload` (discriminated union), `CtaConfig`, `ActionItem`, `BridgeOpts`
+- ✅ `src/app-bridge/send.ts` — `sendToParent(payload, portalUrl?)` — SSR-safe, `ensureHttps` internal helper
+- ✅ `src/app-bridge/index.ts` — barrel export
+- ✅ `test/app-bridge.test.ts` (10 tests passing)
+  - ✅ With `portalUrl` → `postMessage` called once with that origin
+  - ✅ Without `portalUrl` → called once per `DASHBOARD_DOMAINS` entry
+  - ✅ SSR (`window === undefined`) → no throw, no calls
+  - ✅ `ensureHttps` converts `http://` to `https://`
+  - ✅ `DASHBOARD_DOMAINS` all use `https://`
+  - ✅ `Icons` enum values correct
+- ✅ `bun run type-check` passes
+- ✅ `bun test` passes
 
 ---
 
