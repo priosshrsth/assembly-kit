@@ -1,9 +1,20 @@
+export interface AssemblyErrorOptions {
+  message?: string;
+  cause?: unknown;
+  details?: unknown;
+}
+
+interface AssemblyBaseErrorInit extends AssemblyErrorOptions {
+  message: string;
+  statusCode: number;
+}
+
 export class AssemblyError extends Error {
   readonly statusCode: number;
   readonly details?: unknown;
 
-  constructor(message: string, statusCode: number, details?: unknown) {
-    super(message);
+  constructor({ message, statusCode, cause, details }: AssemblyBaseErrorInit) {
+    super(message, { cause });
     this.name = "AssemblyError";
     this.statusCode = statusCode;
     this.details = details;

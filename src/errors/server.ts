@@ -1,12 +1,13 @@
 import { AssemblyError } from "src/errors/base";
+import type { AssemblyErrorOptions } from "src/errors/base";
 
 export class AssemblyServerError extends AssemblyError {
-  constructor(messageOverride?: string, details?: unknown) {
-    super(
-      messageOverride ?? "An unexpected error occurred on the Assembly server",
-      500,
-      details
-    );
+  constructor({ message, ...rest }: AssemblyErrorOptions = {}) {
+    super({
+      message: message ?? "An unexpected error occurred on the Assembly server",
+      statusCode: 500,
+      ...rest,
+    });
     this.name = "AssemblyServerError";
   }
 }

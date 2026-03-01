@@ -1,17 +1,27 @@
 import { AssemblyError } from "src/errors/base";
+import type { AssemblyErrorOptions } from "src/errors/base";
+import { z } from "zod";
 import type { ZodError } from "zod";
 
-export class AssemblyResponseParseError extends AssemblyError {
-  readonly zodError: ZodError;
+export interface AssemblyResponseParseErrorOptions extends Omit<
+  AssemblyErrorOptions,
+  "cause"
+> {
+  cause: ZodError;
+}
 
-  constructor(zodError: ZodError, messageOverride?: string) {
-    super(
-      messageOverride ??
-        "Assembly API response did not match the expected schema",
-      500,
-      zodError
-    );
+export class AssemblyResponseParseError extends AssemblyError {
+  declare readonly cause: ZodError;
+  readonly validationErrors: string;
+
+  constructor({ message, ...rest }: AssemblyResponseParseErrorOptions) {
+    super({
+      message:
+        message ?? "Assembly API response did not match the expected schema",
+      statusCode: 500,
+      ...rest,
+    });
     this.name = "AssemblyResponseParseError";
-    this.zodError = zodError;
+    this.validationErrors = z.prettifyError(rest.cause);
   }
 }
