@@ -1,8 +1,10 @@
 import { z } from "zod";
 
-export interface Company {
+export interface Company<
+  TCustomFields extends Record<string, unknown> = Record<string, unknown>,
+> {
   createdAt: string;
-  customFields?: Record<string, unknown> | null;
+  customFields?: TCustomFields;
   fallbackColor?: string | null;
   iconImageUrl?: string | null;
   id: string;
@@ -14,7 +16,7 @@ export interface Company {
 
 export const CompanySchema: z.ZodType<Company> = z.object({
   createdAt: z.iso.datetime(),
-  customFields: z.record(z.string(), z.unknown()).nullable().optional(),
+  customFields: z.record(z.string(), z.unknown()).optional(),
   fallbackColor: z.string().nullable().optional(),
   iconImageUrl: z.string().nullable().optional(),
   id: z.string(),

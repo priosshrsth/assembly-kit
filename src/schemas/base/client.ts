@@ -1,11 +1,13 @@
 import { z } from "zod";
 
-export interface Client {
+export interface Client<
+  TCustomFields extends Record<string, unknown> = Record<string, unknown>,
+> {
   avatarImageUrl: string | null;
   companyIds?: string[];
   createdAt: string;
   creationMethod: "client" | "directSignUp" | "internalUser";
-  customFields?: Record<string, unknown> | null;
+  customFields?: TCustomFields;
   email: string;
   fallbackColor: string | null;
   familyName: string;
@@ -24,7 +26,7 @@ export const ClientSchema: z.ZodType<Client> = z.object({
   companyIds: z.array(z.string()).optional(),
   createdAt: z.iso.datetime(),
   creationMethod: z.enum(["client", "directSignUp", "internalUser"]),
-  customFields: z.record(z.string(), z.unknown()).nullable().optional(),
+  customFields: z.record(z.string(), z.unknown()).optional(),
   email: z.string(),
   fallbackColor: z.string().nullable(),
   familyName: z.string(),
