@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { isAllowedOrigin } from "src/app-bridge/is-allowed-origin";
 import { sendToParent } from "src/app-bridge/send";
 import type {
   BridgeOpts,
@@ -17,9 +18,9 @@ import type {
  * @param {BridgeOpts} [opts] - Optional portal URL and visibility toggle.
  */
 export const useSecondaryCta = (cta: CtaConfig, opts?: BridgeOpts): void => {
-  useEffect(() => {
-    const show = opts?.show ?? true;
+  const { portalUrl, show = true } = opts ?? {};
 
+  useEffect(() => {
     const payload: SecondaryCtaPayload = {
       icon: show ? cta.icon : undefined,
       label: show ? cta.label : undefined,
@@ -27,10 +28,11 @@ export const useSecondaryCta = (cta: CtaConfig, opts?: BridgeOpts): void => {
       type: "header.secondaryCta",
     };
 
-    sendToParent(payload, opts?.portalUrl);
+    sendToParent(payload, portalUrl);
 
     const handleMessage = (event: MessageEvent): void => {
       if (
+        isAllowedOrigin(event.origin, portalUrl) &&
         event.data.type === "header.secondaryCta.onClick" &&
         typeof event.data.id === "string" &&
         cta.onClick
@@ -44,11 +46,11 @@ export const useSecondaryCta = (cta: CtaConfig, opts?: BridgeOpts): void => {
     return () => {
       removeEventListener("message", handleMessage);
     };
-  }, [cta, opts?.portalUrl, opts?.show]);
+  }, [cta, portalUrl, show]);
 
   useEffect(() => {
     const handleUnload = (): void => {
-      sendToParent({ type: "header.secondaryCta" }, opts?.portalUrl);
+      sendToParent({ type: "header.secondaryCta" }, portalUrl);
     };
 
     addEventListener("beforeunload", handleUnload);
@@ -56,5 +58,5 @@ export const useSecondaryCta = (cta: CtaConfig, opts?: BridgeOpts): void => {
     return () => {
       removeEventListener("beforeunload", handleUnload);
     };
-  }, [opts?.portalUrl]);
+  }, [portalUrl]);
 };

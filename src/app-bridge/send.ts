@@ -1,13 +1,6 @@
 import { DASHBOARD_DOMAINS } from "src/app-bridge/constants";
+import { ensureHttps } from "src/app-bridge/ensure-https";
 import type { AppBridgePayload } from "src/app-bridge/types";
-
-/** Ensures a URL uses HTTPS, upgrading HTTP if necessary. */
-const ensureHttps = (url: string): string => {
-  if (url.startsWith("https://")) {
-    return url;
-  }
-  return `https://${url.replace(/^http:\/\//, "")}`;
-};
 
 /**
  * Sends a postMessage payload to the Assembly dashboard parent frame.
