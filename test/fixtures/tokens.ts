@@ -5,7 +5,7 @@
  * using a key derived from `TEST_API_KEY` via HMAC-SHA256. The first 16 bytes
  * of the hex blob are the IV, followed by the ciphertext.
  */
-import * as nodeCrypto from "node:crypto";
+import { encryptTokenString } from "src/token/crypto";
 
 // ---------------------------------------------------------------------------
 // Test API key — all test tokens are encrypted with this key
@@ -13,28 +13,22 @@ import * as nodeCrypto from "node:crypto";
 export const TEST_API_KEY = "test-api-key-for-assembly-kit-unit-tests";
 
 // ---------------------------------------------------------------------------
-// Encrypt helpers (reverse of decryptTokenString)
+// Test workspace / user IDs
 // ---------------------------------------------------------------------------
-const deriveEncryptionKey = (apiKey: string): string =>
-  nodeCrypto.createHmac("sha256", apiKey).digest("hex").slice(0, 32);
+export const TEST_WORKSPACE_ID = "ws-00000000-0000-0000-0000-000000000001";
+export const TEST_CLIENT_ID = "cl-00000000-0000-0000-0000-000000000002";
+export const TEST_COMPANY_ID = "co-00000000-0000-0000-0000-000000000003";
+export const TEST_INTERNAL_USER_ID = "iu-00000000-0000-0000-0000-000000000004";
+export const TEST_TOKEN_ID = "tk-00000000-0000-0000-0000-000000000005";
+export const TEST_BASE_URL = "https://staging-api.assembly.com";
 
-const encrypt = (keyBuffer: Buffer, plaintext: string): string => {
-  const iv = nodeCrypto.randomBytes(16);
-  const cipher = nodeCrypto.createCipheriv("aes-128-cbc", keyBuffer, iv);
-  const encrypted = Buffer.concat([
-    cipher.update(plaintext, "utf8"),
-    cipher.final(),
-  ]);
-  return Buffer.concat([iv, encrypted]).toString("hex");
-};
-
+// ---------------------------------------------------------------------------
+// Encrypt helper — thin wrapper around encryptTokenString for payloads
+// ---------------------------------------------------------------------------
 const encryptPayload = (
   apiKey: string,
   payload: Record<string, string>
-): string => {
-  const keyBuffer = Buffer.from(deriveEncryptionKey(apiKey), "hex");
-  return encrypt(keyBuffer, JSON.stringify(payload));
-};
+): string => encryptTokenString({ apiKey, plaintext: JSON.stringify(payload) });
 
 /** Pad a payload's workspaceId so the JSON is exactly `targetLen` bytes. */
 const padPayload = (
@@ -50,36 +44,6 @@ const padPayload = (
   const padding = "x".repeat(targetLen - currentLen);
   return { ...basePayload, workspaceId: basePayload.workspaceId + padding };
 };
-
-/**
- * Encrypt a payload whose JSON string is exactly `targetLen` bytes,
- * producing a block-aligned plaintext (multiple of 16 bytes).
- * PKCS7 will add a full 16-byte padding block — this is the Node 24 edge case.
- */
-const encryptBlockAlignedPayload = (
-  apiKey: string,
-  basePayload: Record<string, string>,
-  targetLen: number
-): string => {
-  const padded = padPayload(basePayload, targetLen);
-  const paddedJson = JSON.stringify(padded);
-  const paddedLen = Buffer.byteLength(paddedJson, "utf8");
-  if (paddedLen % 16 !== 0) {
-    throw new Error(`Padded JSON is ${paddedLen} bytes, not a multiple of 16`);
-  }
-  const keyBuffer = Buffer.from(deriveEncryptionKey(apiKey), "hex");
-  return encrypt(keyBuffer, paddedJson);
-};
-
-// ---------------------------------------------------------------------------
-// Test workspace / user IDs
-// ---------------------------------------------------------------------------
-export const TEST_WORKSPACE_ID = "ws-00000000-0000-0000-0000-000000000001";
-export const TEST_CLIENT_ID = "cl-00000000-0000-0000-0000-000000000002";
-export const TEST_COMPANY_ID = "co-00000000-0000-0000-0000-000000000003";
-export const TEST_INTERNAL_USER_ID = "iu-00000000-0000-0000-0000-000000000004";
-export const TEST_TOKEN_ID = "tk-00000000-0000-0000-0000-000000000005";
-export const TEST_BASE_URL = "https://staging-api.assembly.com";
 
 // ---------------------------------------------------------------------------
 // 1. Client token: { workspaceId, clientId, companyId }
@@ -127,16 +91,15 @@ const blockAlignedBase: Record<string, string> = {
   internalUserId: TEST_INTERNAL_USER_ID,
   workspaceId: TEST_WORKSPACE_ID,
 };
-export const BLOCK_ALIGNED_TOKEN = encryptBlockAlignedPayload(
-  TEST_API_KEY,
-  blockAlignedBase,
-  128
-);
+const blockAlignedPadded = padPayload(blockAlignedBase, 128);
+const blockAlignedJson = JSON.stringify(blockAlignedPadded);
+if (Buffer.byteLength(blockAlignedJson, "utf8") % 16 !== 0) {
+  throw new Error("Block-aligned fixture is not a multiple of 16 bytes");
+}
+export const BLOCK_ALIGNED_TOKEN = encryptTokenString({
+  apiKey: TEST_API_KEY,
+  plaintext: blockAlignedJson,
+});
 
 // Export the padded workspace ID so tests can verify the decrypted payload
-const blockAlignedJson = JSON.stringify(blockAlignedBase);
-const blockAlignedPadding = "x".repeat(
-  128 - Buffer.byteLength(blockAlignedJson, "utf8")
-);
-export const BLOCK_ALIGNED_WORKSPACE_ID =
-  TEST_WORKSPACE_ID + blockAlignedPadding;
+export const BLOCK_ALIGNED_WORKSPACE_ID = blockAlignedPadded.workspaceId;

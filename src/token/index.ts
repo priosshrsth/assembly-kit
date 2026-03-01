@@ -5,4 +5,4 @@ export {
   isClientToken,
   isInternalUserToken,
 } from "./guards";
-export { buildCompoundKey, parseToken } from "./parse";
+export { buildCompoundKey, createToken, parseToken } from "./parse";

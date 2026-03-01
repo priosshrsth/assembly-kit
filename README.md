@@ -184,6 +184,26 @@ const payload = parseToken({ token: encryptedTokenHex, apiKey });
 
 Throws `AssemblyNoTokenError` if the token is missing, or `AssemblyInvalidTokenError` if decryption/validation fails.
 
+#### `createToken`
+
+Encrypt a `TokenPayload` into a hex-encoded token string (the inverse of `parseToken`):
+
+```typescript
+import { createToken } from "assembly-kit";
+
+const token = createToken({
+  payload: {
+    workspaceId: "ws-123",
+    clientId: "cl-456",
+    companyId: "co-789",
+  },
+  apiKey,
+});
+// token is a hex-encoded AES-128-CBC encrypted string
+```
+
+The payload is validated against `TokenPayloadSchema` before encryption. Throws `AssemblyInvalidTokenError` if validation fails. Each call produces a different ciphertext (random IV).
+
 #### `buildCompoundKey`
 
 Build the compound API key for the `X-API-Key` header:

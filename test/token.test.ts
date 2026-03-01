@@ -8,6 +8,7 @@ import {
 import type { TokenPayload } from "src/schemas/base/token";
 import {
   buildCompoundKey,
+  createToken,
   ensureIsClient,
   ensureIsInternalUser,
   isClientToken,
@@ -134,6 +135,66 @@ describe("parseToken", () => {
       expect(payload.workspaceId).toBe(BLOCK_ALIGNED_WORKSPACE_ID);
       expect(payload.internalUserId).toBe(TEST_INTERNAL_USER_ID);
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// createToken
+// ---------------------------------------------------------------------------
+describe("createToken", () => {
+  it("round-trips a client payload through createToken → parseToken", () => {
+    const payload: TokenPayload = {
+      clientId: TEST_CLIENT_ID,
+      companyId: TEST_COMPANY_ID,
+      workspaceId: TEST_WORKSPACE_ID,
+    };
+    const token = createToken({ apiKey: TEST_API_KEY, payload });
+    const parsed = parseToken({ apiKey: TEST_API_KEY, token });
+    expect(parsed.workspaceId).toBe(TEST_WORKSPACE_ID);
+    expect(parsed.clientId).toBe(TEST_CLIENT_ID);
+    expect(parsed.companyId).toBe(TEST_COMPANY_ID);
+  });
+
+  it("round-trips an internal user payload", () => {
+    const payload: TokenPayload = {
+      internalUserId: TEST_INTERNAL_USER_ID,
+      workspaceId: TEST_WORKSPACE_ID,
+    };
+    const token = createToken({ apiKey: TEST_API_KEY, payload });
+    const parsed = parseToken({ apiKey: TEST_API_KEY, token });
+    expect(parsed.workspaceId).toBe(TEST_WORKSPACE_ID);
+    expect(parsed.internalUserId).toBe(TEST_INTERNAL_USER_ID);
+  });
+
+  it("preserves optional fields (tokenId, baseUrl)", () => {
+    const payload: TokenPayload = {
+      baseUrl: TEST_BASE_URL,
+      clientId: TEST_CLIENT_ID,
+      companyId: TEST_COMPANY_ID,
+      tokenId: TEST_TOKEN_ID,
+      workspaceId: TEST_WORKSPACE_ID,
+    };
+    const token = createToken({ apiKey: TEST_API_KEY, payload });
+    const parsed = parseToken({ apiKey: TEST_API_KEY, token });
+    expect(parsed.tokenId).toBe(TEST_TOKEN_ID);
+    expect(parsed.baseUrl).toBe(TEST_BASE_URL);
+  });
+
+  it("produces different ciphertexts for the same payload (random IV)", () => {
+    const payload: TokenPayload = {
+      internalUserId: TEST_INTERNAL_USER_ID,
+      workspaceId: TEST_WORKSPACE_ID,
+    };
+    const token1 = createToken({ apiKey: TEST_API_KEY, payload });
+    const token2 = createToken({ apiKey: TEST_API_KEY, payload });
+    expect(token1).not.toBe(token2);
+  });
+
+  it("throws AssemblyInvalidTokenError for invalid payload", () => {
+    const badPayload = { workspaceId: "" } as TokenPayload;
+    expect(() =>
+      createToken({ apiKey: TEST_API_KEY, payload: badPayload })
+    ).toThrow(AssemblyInvalidTokenError);
   });
 });
 

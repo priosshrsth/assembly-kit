@@ -1,10 +1,15 @@
-import { createDecipheriv, createHmac } from "node:crypto";
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHmac,
+  randomBytes,
+} from "node:crypto";
 
 /**
- * Derive a 128-bit AES decryption key from the API key using HMAC-SHA256.
+ * Derive a 128-bit AES key from the API key using HMAC-SHA256.
  * Takes the first 32 hex characters (16 bytes) of the HMAC digest.
  */
-export const deriveDecryptionKey = (apiKey: string): string =>
+export const deriveKey = (apiKey: string): string =>
   createHmac("sha256", apiKey).digest("hex").slice(0, 32);
 
 /** Strip PKCS7 padding from raw decrypted bytes. */
@@ -39,7 +44,7 @@ const parseEncryptedToken = ({
   apiKey: string;
   encryptedToken: string;
 }): CipherParts => {
-  const keyBuffer = Buffer.from(deriveDecryptionKey(apiKey), "hex");
+  const keyBuffer = Buffer.from(deriveKey(apiKey), "hex");
   const blob = Buffer.from(encryptedToken, "hex");
   return { ciphertext: blob.subarray(16), iv: blob.subarray(0, 16), keyBuffer };
 };
@@ -99,4 +104,33 @@ export const decryptTokenString = ({
   } catch {
     return decryptManual(parts);
   }
+};
+
+/**
+ * Encrypt a plaintext string into a hex-encoded AES-128-CBC token.
+ *
+ * Produces a hex blob where the first 16 bytes are a random IV followed
+ * by the PKCS7-padded ciphertext — the exact format that `decryptTokenString`
+ * expects.
+ *
+ * @param {object} options - Encryption options.
+ * @param {string} options.apiKey - The workspace/app API key used to derive the encryption key.
+ * @param {string} options.plaintext - The plaintext string to encrypt (typically JSON).
+ * @returns {string} The hex-encoded encrypted token.
+ */
+export const encryptTokenString = ({
+  apiKey,
+  plaintext,
+}: {
+  apiKey: string;
+  plaintext: string;
+}): string => {
+  const keyBuffer = Buffer.from(deriveKey(apiKey), "hex");
+  const iv = randomBytes(16);
+  const cipher = createCipheriv("aes-128-cbc", keyBuffer, iv);
+  const encrypted = Buffer.concat([
+    cipher.update(plaintext, "utf8"),
+    cipher.final(),
+  ]);
+  return Buffer.concat([iv, encrypted]).toString("hex");
 };

@@ -3,7 +3,7 @@ import { AssemblyNoTokenError } from "src/errors/no-token";
 import type { TokenPayload } from "src/schemas/base/token";
 import { TokenPayloadSchema } from "src/schemas/base/token";
 
-import { decryptTokenString } from "./crypto";
+import { decryptTokenString, encryptTokenString } from "./crypto";
 
 /** Decrypt the token string, wrapping errors as AssemblyInvalidTokenError. */
 const decrypt = ({
@@ -79,6 +79,40 @@ export const parseToken = ({
   }
 
   return validatePayload(decrypt({ apiKey, token }));
+};
+
+/**
+ * Encrypt a token payload into a hex-encoded AES-128-CBC token string.
+ *
+ * This is the inverse of `parseToken`. The payload is validated against
+ * `TokenPayloadSchema`, serialized to JSON, and encrypted using the API key
+ * with the same HMAC-SHA256 key derivation and AES-128-CBC cipher.
+ *
+ * @param {object} options - Token creation options.
+ * @param {TokenPayload} options.payload - The token payload to encrypt.
+ * @param {string} options.apiKey - The workspace/app API key used to derive the encryption key.
+ * @returns {string} The hex-encoded encrypted token string.
+ * @throws {AssemblyInvalidTokenError} If the payload fails schema validation.
+ */
+export const createToken = ({
+  payload,
+  apiKey,
+}: {
+  payload: TokenPayload;
+  apiKey: string;
+}): string => {
+  const result = TokenPayloadSchema.safeParse(payload);
+  if (!result.success) {
+    throw new AssemblyInvalidTokenError({
+      cause: result.error,
+      message: "Token payload failed schema validation",
+    });
+  }
+
+  return encryptTokenString({
+    apiKey,
+    plaintext: JSON.stringify(result.data),
+  });
 };
 
 /**

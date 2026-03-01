@@ -83,10 +83,12 @@ Legend: ✅ done · 🚧 in progress · ⬜ not started
 > Dependencies: Feature 1, Feature 2
 
 - ✅ `src/token/crypto.ts`
-  - ✅ `deriveDecryptionKey(apiKey)` — HMAC-SHA256 → hex → slice(0,32)
-  - ✅ `decryptTokenString(apiKey, encryptedToken)` — AES-128-CBC, `setAutoPadding(false)`, manual PKCS7 strip
+  - ✅ `deriveKey(apiKey)` — HMAC-SHA256 → hex → slice(0,32)
+  - ✅ `decryptTokenString(apiKey, encryptedToken)` — AES-128-CBC, dual strategy (native → manual PKCS7 fallback)
+  - ✅ `encryptTokenString(apiKey, plaintext)` — AES-128-CBC encryption with random IV
 - ✅ `src/token/parse.ts`
   - ✅ `parseToken(token, apiKey): TokenPayload`
+  - ✅ `createToken(payload, apiKey): string` — encrypt a payload into a token (inverse of parseToken)
   - ✅ `buildCompoundKey(apiKey, payload)` — compound key builder
 - ✅ `src/token/guards.ts`
   - ✅ `ensureIsClient(payload)`
@@ -112,7 +114,7 @@ Legend: ✅ done · 🚧 in progress · ⬜ not started
 - ✅ `bun run type-check` passes
 - ✅ `bun run lint` passes
 - ✅ `bun run build` succeeds
-- ✅ `bun test` passes (149 tests across 4 files)
+- ✅ `bun test` passes (154 tests across 4 files)
 
 ---
 
