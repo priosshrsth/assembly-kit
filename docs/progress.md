@@ -15,7 +15,7 @@ Legend: ✅ done · 🚧 in progress · ⬜ not started
 - ✅ Runtime deps: `zod` installed
 - ⬜ Runtime deps: `ky`, `p-throttle` (needed for Feature 4)
 - ✅ Entry point stubs: `src/schemas/index.ts`, `src/app-bridge/index.ts`, `src/bridge-ui/index.ts`
-- ⬜ Test fixtures: `test/fixtures/tokens.ts` (encrypted token constants for token tests)
+- ✅ Test fixtures: `test/fixtures/tokens.ts` (encrypted token constants for token tests)
 
 ---
 
@@ -78,35 +78,41 @@ Legend: ✅ done · 🚧 in progress · ⬜ not started
 
 ---
 
-## Feature 3: Token Utilities
+## Feature 3: Token Utilities ✅
 
 > Dependencies: Feature 1, Feature 2
 
-- ⬜ `src/token/crypto.ts`
-  - ⬜ `deriveDecryptionKey(apiKey)` — HMAC-SHA256 → hex → slice(0,32)
-  - ⬜ `decryptTokenString(apiKey, encryptedToken)` — AES-128-CBC, `setAutoPadding(false)`, manual PKCS7 strip
-- ⬜ `src/token/parse.ts`
-  - ⬜ `parseToken(token, apiKey): TokenPayload`
-  - ⬜ `buildCompoundKey(apiKey, payload)` — internal helper
-- ⬜ `src/token/guards.ts`
-  - ⬜ `ensureIsClient(payload)`
-  - ⬜ `ensureIsInternalUser(payload)`
-  - ⬜ `isClientToken(payload)` — type predicate
-  - ⬜ `isInternalUserToken(payload)` — type predicate
-- ⬜ `src/token/index.ts` — barrel export
-- ⬜ `test/fixtures/tokens.ts` — pre-generated encrypted token constants
-- ⬜ `test/token.test.ts`
-  - ⬜ Null/empty/non-string token → `AssemblyNoTokenError`
-  - ⬜ Invalid hex → `AssemblyInvalidTokenError`
-  - ⬜ Valid client token → `TokenPayload` with `clientId` + `companyId`
-  - ⬜ Valid internal user token → `TokenPayload` with `internalUserId`
-  - ⬜ Token with `tokenId` → payload includes `tokenId`
-  - ⬜ Token with `baseUrl` → payload includes `baseUrl`
-  - ⬜ Block-aligned plaintext (Node 24 PKCS7 edge case) decrypts correctly
-  - ⬜ `buildCompoundKey` with/without `tokenId`
-  - ⬜ Guard and predicate functions
-- ⬜ `bun run type-check` passes
-- ⬜ `bun test` passes
+- ✅ `src/token/crypto.ts`
+  - ✅ `deriveDecryptionKey(apiKey)` — HMAC-SHA256 → hex → slice(0,32)
+  - ✅ `decryptTokenString(apiKey, encryptedToken)` — AES-128-CBC, `setAutoPadding(false)`, manual PKCS7 strip
+- ✅ `src/token/parse.ts`
+  - ✅ `parseToken(token, apiKey): TokenPayload`
+  - ✅ `buildCompoundKey(apiKey, payload)` — compound key builder
+- ✅ `src/token/guards.ts`
+  - ✅ `ensureIsClient(payload)`
+  - ✅ `ensureIsInternalUser(payload)`
+  - ✅ `isClientToken(payload)` — type predicate
+  - ✅ `isInternalUserToken(payload)` — type predicate
+- ✅ `src/token/index.ts` — barrel export (public API only, crypto internals not exposed)
+- ✅ `src/index.ts` re-exports all token utilities
+- ✅ `test/fixtures/tokens.ts` — pre-generated encrypted token constants with encrypt helper
+- ✅ `test/token.test.ts` (22 tests passing)
+  - ✅ Null/empty/non-string token → `AssemblyNoTokenError`
+  - ✅ Invalid hex → `AssemblyInvalidTokenError`
+  - ✅ Wrong API key → `AssemblyInvalidTokenError`
+  - ✅ Error cause chaining preserved
+  - ✅ Valid client token → `TokenPayload` with `clientId` + `companyId`
+  - ✅ Valid internal user token → `TokenPayload` with `internalUserId`
+  - ✅ Token with `tokenId` → payload includes `tokenId`
+  - ✅ Token with `baseUrl` → payload includes `baseUrl`
+  - ✅ Block-aligned plaintext (Node 24 PKCS7 edge case) decrypts correctly
+  - ✅ `buildCompoundKey` with/without `tokenId`
+  - ✅ `isClientToken` / `isInternalUserToken` type predicates
+  - ✅ `ensureIsClient` / `ensureIsInternalUser` guard functions
+- ✅ `bun run type-check` passes
+- ✅ `bun run lint` passes
+- ✅ `bun run build` succeeds
+- ✅ `bun test` passes (149 tests across 4 files)
 
 ---
 
