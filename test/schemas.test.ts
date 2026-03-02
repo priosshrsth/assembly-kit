@@ -506,6 +506,8 @@ describe("TypeScript type inference", () => {
       id: "co1",
       isPlaceholder: false,
       name: "Acme",
+      object: "company" as const,
+      updatedAt: "2024-01-01T00:00:00.000Z",
     } satisfies z.infer<typeof CompanySchema>;
 
     expect(company.id).toBe("co1");

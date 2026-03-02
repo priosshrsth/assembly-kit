@@ -72,7 +72,7 @@
     "test": "bun test",
     "test:coverage": "bun test --coverage",
     "test:watch": "bun test --watch",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit && tsc --noEmit -p test/tsconfig.json"
   },
   "dependencies": {
     "@assembly-js/node-sdk": "^3.19.1",

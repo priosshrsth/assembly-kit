@@ -21,6 +21,8 @@ const BASE_URL = "https://api.assembly.test";
 const COMPOUND_KEY = "ws-123/api-key-456";
 const SDK_VERSION = "0.1.0-test";
 
+type FetchFn = typeof globalThis.fetch;
+
 interface MockCall {
   url: string;
   method: string;
@@ -47,17 +49,26 @@ const STATUS_TEXT: Record<number, string> = {
   503: "Service Unavailable",
 };
 
-const FAILING_FETCH: typeof globalThis.fetch = () => {
+const FAILING_FETCH = (() => {
   throw new TypeError("fetch failed");
+}) as unknown as FetchFn;
+
+/** Safely access a mock call by index (narrows past noUncheckedIndexedAccess). */
+const callAt = (calls: MockCall[], index = 0): MockCall => {
+  const c = calls[index];
+  if (c === undefined) {
+    throw new Error(`No call at index ${index}`);
+  }
+  return c;
 };
 
 const createMockFetch = (
   responses: MockResponse[]
-): { fetch: typeof globalThis.fetch; calls: MockCall[] } => {
+): { fetch: FetchFn; calls: MockCall[] } => {
   const calls: MockCall[] = [];
   let callIndex = 0;
 
-  const mockFetch: typeof globalThis.fetch = async (
+  const mockFetch = async (
     input: RequestInfo | URL,
     init?: RequestInit
   ): Promise<Response> => {
@@ -85,11 +96,11 @@ const createMockFetch = (
     );
   };
 
-  return { calls, fetch: mockFetch };
+  return { calls, fetch: mockFetch as FetchFn };
 };
 
 const createTestTransport = (overrides: {
-  fetch: typeof globalThis.fetch;
+  fetch: FetchFn;
   retryCount?: number;
   requestsPerSecond?: number;
 }): Transport =>
@@ -121,7 +132,7 @@ describe("createTransport", () => {
 
       expect(result).toEqual({ data: [{ id: "1" }] });
       expect(calls).toHaveLength(1);
-      expect(calls[0].url).toBe(`${BASE_URL}/clients`);
+      expect(callAt(calls).url).toBe(`${BASE_URL}/clients`);
     });
 
     it("POST 200 → sends JSON body and resolves", async () => {
@@ -137,9 +148,9 @@ describe("createTransport", () => {
 
       expect(result).toEqual({ data: { id: "new-1" } });
       expect(calls).toHaveLength(1);
-      expect(calls[0].method).toBe("POST");
-      const body = String(calls[0].body);
-      expect(JSON.parse(body)).toEqual({ name: "Acme" });
+      const c = callAt(calls);
+      expect(c.method).toBe("POST");
+      expect(JSON.parse(String(c.body))).toEqual({ name: "Acme" });
     });
 
     it("PATCH 200 → sends JSON body and resolves", async () => {
@@ -153,7 +164,7 @@ describe("createTransport", () => {
       }>("/clients/1", { name: "Updated" });
 
       expect(result).toEqual({ data: { id: "1", name: "Updated" } });
-      expect(calls[0].method).toBe("PATCH");
+      expect(callAt(calls).method).toBe("PATCH");
     });
 
     it("DELETE 200 → resolves with parsed JSON", async () => {
@@ -165,7 +176,7 @@ describe("createTransport", () => {
       const result = await transport.delete<{ success: boolean }>("/clients/1");
 
       expect(result).toEqual({ success: true });
-      expect(calls[0].method).toBe("DELETE");
+      expect(callAt(calls).method).toBe("DELETE");
     });
 
     it("strips leading slash from paths (ky prefixUrl requirement)", async () => {
@@ -174,7 +185,7 @@ describe("createTransport", () => {
 
       await transport.get("/clients");
 
-      expect(calls[0].url).toBe(`${BASE_URL}/clients`);
+      expect(callAt(calls).url).toBe(`${BASE_URL}/clients`);
     });
 
     it("handles paths without leading slash", async () => {
@@ -183,7 +194,7 @@ describe("createTransport", () => {
 
       await transport.get("clients");
 
-      expect(calls[0].url).toBe(`${BASE_URL}/clients`);
+      expect(callAt(calls).url).toBe(`${BASE_URL}/clients`);
     });
 
     it("passes searchParams to the request", async () => {
@@ -196,7 +207,7 @@ describe("createTransport", () => {
         searchParams: { active: true, limit: 10, page: 1 },
       });
 
-      const url = new URL(calls[0].url);
+      const url = new URL(callAt(calls).url);
       expect(url.searchParams.get("page")).toBe("1");
       expect(url.searchParams.get("limit")).toBe("10");
       expect(url.searchParams.get("active")).toBe("true");
@@ -212,7 +223,7 @@ describe("createTransport", () => {
 
       await transport.get("/clients");
 
-      expect(calls[0].headers.get("X-API-Key")).toBe(COMPOUND_KEY);
+      expect(callAt(calls).headers.get("X-API-Key")).toBe(COMPOUND_KEY);
     });
 
     it("does NOT send Authorization header", async () => {
@@ -221,7 +232,7 @@ describe("createTransport", () => {
 
       await transport.get("/clients");
 
-      expect(calls[0].headers.get("Authorization")).toBeNull();
+      expect(callAt(calls).headers.get("Authorization")).toBeNull();
     });
 
     it("sends X-Assembly-SDK-Version header", async () => {
@@ -230,7 +241,9 @@ describe("createTransport", () => {
 
       await transport.get("/clients");
 
-      expect(calls[0].headers.get("X-Assembly-SDK-Version")).toBe(SDK_VERSION);
+      expect(callAt(calls).headers.get("X-Assembly-SDK-Version")).toBe(
+        SDK_VERSION
+      );
     });
 
     it("sends Content-Type: application/json on POST", async () => {
@@ -239,7 +252,9 @@ describe("createTransport", () => {
 
       await transport.post("/clients", { name: "Test" });
 
-      expect(calls[0].headers.get("Content-Type")).toBe("application/json");
+      expect(callAt(calls).headers.get("Content-Type")).toBe(
+        "application/json"
+      );
     });
   });
 
@@ -519,7 +534,7 @@ describe("createTransport", () => {
 
     it("rate limiter delays requests beyond the limit", async () => {
       const timestamps: number[] = [];
-      const mockFetch: typeof globalThis.fetch = (
+      const mockFetch = (
         _input: RequestInfo | URL,
         _init?: RequestInit
       ): Promise<Response> => {
@@ -529,7 +544,7 @@ describe("createTransport", () => {
 
       // Use a very low limit so we can observe the delay
       const transport = createTestTransport({
-        fetch: mockFetch,
+        fetch: mockFetch as FetchFn,
         requestsPerSecond: 3,
       });
 
@@ -545,7 +560,10 @@ describe("createTransport", () => {
 
       // The 4th request should be delayed by the rate limiter
       // (p-throttle uses a sliding window of 1000ms for 3 req/s)
-      expect(fourth - maxEarlyTimestamp).toBeGreaterThanOrEqual(200);
+      expect(fourth).toBeDefined();
+      expect((fourth as number) - maxEarlyTimestamp).toBeGreaterThanOrEqual(
+        200
+      );
     });
   });
 });

@@ -102,4 +102,8 @@ export const BLOCK_ALIGNED_TOKEN = encryptTokenString({
 });
 
 // Export the padded workspace ID so tests can verify the decrypted payload
-export const BLOCK_ALIGNED_WORKSPACE_ID = blockAlignedPadded.workspaceId;
+const paddedWsId = blockAlignedPadded.workspaceId;
+if (paddedWsId === undefined) {
+  throw new Error("workspaceId missing in padded payload");
+}
+export const BLOCK_ALIGNED_WORKSPACE_ID: string = paddedWsId;
