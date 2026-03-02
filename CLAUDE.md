@@ -50,11 +50,11 @@ Always keep docs in sync with the code. Do not defer documentation to a later st
 ```
 src/errors/          ← base AssemblyError class + createAssemblyError factory + all subclasses
 src/schemas/         ← Zod schemas: base/ → responses/ → requests/
-src/token/           ← parseToken(), ensureIsClient(), ensureIsInternalUser(), crypto primitives
+src/token/           ← optional standalone utilities: parseToken(), createToken(), guards, crypto (NOT used by createClient)
 src/transport/       ← ky HTTP client + p-throttle rate limiter + error mapper
 src/pagination/      ← paginate() AsyncIterable cursor helper
-src/client/          ← createClient() factory + AssemblyClient class
-src/resources/       ← workspace, clients, companies, internalUsers, notifications, customFields, tasks, token
+src/client/          ← createClient() factory + AssemblyClient class (workspaceId is required, token is opaque)
+src/resources/       ← workspace, clients, companies, internalUsers, notifications, customFields, tasks
 src/app-bridge/      ← parallel track, no dependency on layers above
 src/bridge-ui/       ← depends on app-bridge only
 ```
@@ -106,16 +106,20 @@ This applies to every `export const`, `export function`, `export class`, and `ex
 
 **Rate limiting:** `p-throttle` (sliding window, 20 req/s default). Applied in ky's `beforeRequest` hook. No `bottleneck` — avoids fixed `minTime` penalty at low request rates.
 
-**No module-level singletons.** Every `createClient()` creates a fresh transport, rate limiter, and parsed token. This is critical for serverless safety (Vercel, Cloudflare Workers).
+**No module-level singletons.** Every `createClient()` creates a fresh transport and rate limiter. This is critical for serverless safety (Vercel, Cloudflare Workers).
 
-**Token decryption** is fully synchronous and local — no network call:
+**`workspaceId` is required.** Every `createClient()` call requires an explicit `workspaceId` parameter. The compound key is always `${workspaceId}/${apiKey}` (or `${workspaceId}/${apiKey}/${tokenId}`). Raw apiKey alone is never sent.
+
+**Token is opaque.** The SDK does **not** decrypt or parse the token. It is received as-is (required for marketplace apps, optional otherwise). Token decryption utilities (`parseToken`, `createToken`) are available as optional standalone exports for apps that need to inspect token contents.
+
+**Token decryption utilities** (standalone, not used by `createClient`):
 
 1. HMAC-SHA256(apiKey).hex.slice(0,32) → 128-bit key
 2. AES-128-CBC decrypt: first 16 bytes of hex blob = IV, rest = ciphertext
-3. `setAutoPadding(false)` + manual PKCS7 strip — required for Node 24 (OpenSSL 3.4/3.5) compatibility
-4. JSON.parse → validate with `TokenPayloadSchema` using `.strip()` (unknown fields silently dropped)
+3. Dual strategy: native autoPadding first, manual PKCS7 fallback for Node 24 (OpenSSL 3.4/3.5)
+4. JSON.parse → validate with `TokenPayloadSchema` (unknown fields silently dropped)
 
-Always import crypto as `import * as nodeCrypto from 'node:crypto'` (explicit `node:` prefix for Bun + Node compat).
+Always import crypto as `import { ... } from 'node:crypto'` (explicit `node:` prefix for Bun + Node compat).
 
 **`isMarketplaceApp` flag:** When `true`, a token is required at `createClient()` construction time. When `false`, token is optional but endpoints requiring user context throw `AssemblyNoTokenError` at call time.
 

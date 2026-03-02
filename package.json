@@ -72,10 +72,12 @@
     "test": "bun test",
     "test:coverage": "bun test --coverage",
     "test:watch": "bun test --watch",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit && tsc --noEmit -p test/tsconfig.json"
   },
   "dependencies": {
     "@assembly-js/node-sdk": "^3.19.1",
+    "ky": "^1.14.3",
+    "p-throttle": "^8.1.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {

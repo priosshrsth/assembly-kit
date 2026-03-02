@@ -120,11 +120,11 @@ describe("DASHBOARD_DOMAINS", () => {
 
 describe("Icons", () => {
   it("has all expected values", () => {
-    expect(Icons.Archive).toBe("Archive");
-    expect(Icons.Plus).toBe("Plus");
-    expect(Icons.Templates).toBe("Templates");
-    expect(Icons.Trash).toBe("Trash");
-    expect(Icons.Download).toBe("Download");
-    expect(Icons.Disconnect).toBe("Disconnect");
+    expect(Icons.Archive as string).toBe("Archive");
+    expect(Icons.Plus as string).toBe("Plus");
+    expect(Icons.Templates as string).toBe("Templates");
+    expect(Icons.Trash as string).toBe("Trash");
+    expect(Icons.Download as string).toBe("Download");
+    expect(Icons.Disconnect as string).toBe("Disconnect");
   });
 });

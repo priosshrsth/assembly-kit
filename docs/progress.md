@@ -118,29 +118,46 @@ Legend: ✅ done · 🚧 in progress · ⬜ not started
 
 ---
 
-## Feature 4: HTTP Transport Layer
+## Feature 4: HTTP Transport Layer ✅
 
 > Dependencies: Feature 1 · Install: `ky`, `p-throttle`
 
-- ⬜ `bun add ky p-throttle`
-- ⬜ `src/transport/rate-limiter.ts` — `createRateLimiter(requestsPerSecond)`
-- ⬜ `src/transport/error-mapper.ts` — `mapHttpError(response)` → typed `AssemblyError`
-- ⬜ `src/transport/http.ts` — `createTransport(options)` with injectable `fetch`
-  - ⬜ `X-API-Key` header (not `Authorization: Bearer`)
-  - ⬜ `X-Assembly-SDK-Version` header
-  - ⬜ Retry on 429 / 5xx only, exponential backoff, respects `Retry-After`
-  - ⬜ Rate limiting via `p-throttle` in `beforeRequest` hook
-- ⬜ `test/transport.test.ts` (all via mock `fetch` — no real HTTP calls)
-  - ⬜ 200 → resolves with parsed JSON
-  - ⬜ 404 → `AssemblyNotFoundError`
-  - ⬜ 429 + `Retry-After` → `AssemblyRateLimitError` with `retryAfter`
-  - ⬜ 429 once then 200 → successful retry
-  - ⬜ 503 → retries then `AssemblyServerError`
-  - ⬜ 21 concurrent calls → 21st is delayed by rate limiter
-  - ⬜ `X-API-Key` header verified
-  - ⬜ `X-Assembly-SDK-Version` header verified
-- ⬜ `bun run type-check` passes
-- ⬜ `bun test` passes
+- ✅ `bun add ky p-throttle` (ky@1.14.3, p-throttle@8.1.0)
+- ✅ `src/transport/rate-limiter.ts` — `createRateLimiter(requestsPerSecond)` with p-throttle acquireSlot pattern
+- ✅ `src/transport/error-mapper.ts` — `mapHttpError(error)` → typed `AssemblyError`, `parseRetryAfter(header)`
+- ✅ `src/transport/http.ts` — `createTransport(options)` with injectable `fetch`
+  - ✅ `X-API-Key` header (not `Authorization: Bearer`)
+  - ✅ `X-Assembly-SDK-Version` header
+  - ✅ Retry on 429 / 5xx only, exponential backoff, respects `Retry-After` via ky's afterStatusCodes
+  - ✅ Rate limiting via `p-throttle` in `beforeRequest` hook (fires on retries too)
+  - ✅ Configurable `retryCount`, `retryMinTimeout`, `retryMaxTimeout`, `requestsPerSecond`
+  - ✅ Strips leading `/` from paths (ky prefixUrl requirement)
+- ✅ `src/transport/index.ts` — internal barrel (NOT exported from `src/index.ts`)
+- ✅ `test/transport.test.ts` (39 tests, all via mock `fetch` — no real HTTP calls)
+  - ✅ GET/POST/PATCH/DELETE 200 → resolves with parsed JSON
+  - ✅ 400 → `AssemblyValidationError`, 401 → `AssemblyUnauthorizedError`
+  - ✅ 403 → `AssemblyForbiddenError`, 404 → `AssemblyNotFoundError`
+  - ✅ 422 → `AssemblyValidationError`
+  - ✅ 429 + `Retry-After` → `AssemblyRateLimitError` with `retryAfter`
+  - ✅ 429 without `Retry-After` → `AssemblyRateLimitError` with `undefined` retryAfter
+  - ✅ 500/502/503 → `AssemblyServerError`
+  - ✅ 429 once then 200 → successful retry
+  - ✅ 503 once then 200 → successful retry
+  - ✅ 503 exhausts retries → `AssemblyServerError`
+  - ✅ retryCount: 0 → no retries
+  - ✅ 21 concurrent calls with 20/s limit → all resolve
+  - ✅ Rate limiter delays requests beyond the limit (timing verified)
+  - ✅ `X-API-Key` header verified (not `Authorization`)
+  - ✅ `X-Assembly-SDK-Version` header verified
+  - ✅ `Content-Type: application/json` on mutations
+  - ✅ Network failure → `AssemblyConnectionError` with cause
+  - ✅ Response body preserved as `details` on errors
+  - ✅ `parseRetryAfter` unit tests (9 tests: null, empty, integer, zero, decimal, negative, HTTP-date future/past, unparseable)
+- ✅ `bun run type-check` passes
+- ✅ `bun run lint` passes
+- ✅ `bun test` passes (193 tests across 5 files)
+
+> **Note:** Transport is internal only — consumed by the client factory (Feature 6), not exported from the main entry point. Error mapping uses try/catch around ky requests, converting `HTTPError` to typed `AssemblyError` subclasses and all other errors to `AssemblyConnectionError`. The `withErrorMapping` helper and `stripLeadingSlash` are module-level arrow functions.
 
 ---
 
