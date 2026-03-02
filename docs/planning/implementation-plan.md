@@ -1,9 +1,9 @@
 # assembly-kit — Implementation Plan
 
-**Version:** 1.1
+**Version:** 1.2
 **Status:** Draft
 **Date:** 2026-02-28
-**Updated:** 2026-02-28 — Token internals verified; crypto reimplemented locally; `isMarketplaceApp` flag added; auth header corrected to `X-API-Key`.
+**Updated:** 2026-03-01 — SDK no longer parses tokens internally; `workspaceId` is a required constructor parameter; Feature 3 reframed as optional standalone utilities; Feature 6 simplified.
 
 This is a feature-by-feature implementation plan. Each feature is a self-contained unit that can be worked on, reviewed, and tested independently before moving to the next. Features are ordered by dependency: later features build on earlier ones.
 
@@ -214,149 +214,60 @@ Strict schemas for outgoing payloads. These are not enforced by the transport bu
 
 ---
 
-## Feature 3: Token Utilities
+## Feature 3: Token Utilities (Optional Standalone Exports)
 
 > Dependency: Feature 1 (errors), Feature 2 (schemas)
+> **Note:** This feature is **not a dependency** for Feature 6 (Client Factory). The SDK treats tokens as opaque strings. These utilities are optional exports for apps that need to inspect or create token contents.
 
 ### What we're building
 
-The token crypto layer and guard functions. Token decryption is **entirely synchronous and local** — no network call, no dependency on `@assembly-js/node-sdk`. We reimplement the two-step crypto directly using Node.js `crypto`. See `docs/planning/node-sdk-internals.md` §2 for the full algorithm walkthrough.
+Optional standalone functions for decrypting, parsing, creating, and guarding Assembly iframe tokens. These are exported from the main `assembly-kit` entry point for apps that need to inspect token contents (e.g. to determine user type, extract workspaceId, or extract tokenId before constructing a client). The client factory does **not** use these internally.
 
-### Files to create
+Token decryption is entirely synchronous and local — no network call, no dependency on `@assembly-js/node-sdk`. See `docs/planning/node-sdk-internals.md` §2 for the algorithm walkthrough.
 
-- `src/token/crypto.ts` — key derivation + AES decryption
-- `src/token/parse.ts` — `parseToken()` public API
-- `src/token/guards.ts` — `ensureIsClient()`, `ensureIsInternalUser()`, type predicates
+### Files (already created — Feature 3 is complete)
+
+- `src/token/crypto.ts` — `deriveKey()`, `decryptTokenString()`, `encryptTokenString()` (internal)
+- `src/token/parse.ts` — `parseToken()`, `createToken()`, `buildCompoundKey()` (public)
+- `src/token/guards.ts` — `ensureIsClient()`, `ensureIsInternalUser()`, type predicates (public)
 - `src/token/index.ts` — barrel export
 
-### Implementation Steps
+### Public API
 
-**3.1 — Crypto primitives**
+- **`parseToken({ token, apiKey }): TokenPayload`** — decrypt and validate an encrypted token string. Throws `AssemblyNoTokenError` / `AssemblyInvalidTokenError`.
+- **`createToken({ payload, apiKey }): string`** — encrypt a `TokenPayload` into a hex-encoded token string (inverse of `parseToken`). Validates payload first.
+- **`buildCompoundKey({ apiKey, payload }): string`** — build compound API key from a token payload. With tokenId: `${workspaceId}/${apiKey}/${tokenId}`. Without: `${workspaceId}/${apiKey}`.
+- **`ensureIsClient(payload): ClientTokenPayload`** — narrows payload or throws `AssemblyUnauthorizedError`.
+- **`ensureIsInternalUser(payload): InternalUserTokenPayload`** — narrows payload or throws `AssemblyUnauthorizedError`.
+- **`isClientToken(payload): payload is ClientTokenPayload`** — type predicate, no throw.
+- **`isInternalUserToken(payload): payload is InternalUserTokenPayload`** — type predicate, no throw.
 
-`src/token/crypto.ts` — internal, not exported from public API:
+### Typical usage pattern (optional)
 
-```ts
-import * as nodeCrypto from "node:crypto"; // node: prefix required for Bun + Node 18/24 compat
-
-// Derives a 128-bit hex key from the API key using HMAC-SHA256
-// Mirrors: generate128BitKey() in @assembly-js/node-sdk
-export function deriveDecryptionKey(apiKey: string): string {
-  return nodeCrypto.createHmac("sha256", apiKey).digest("hex").slice(0, 32);
-}
-
-// Decrypts an AES-128-CBC token. First 16 bytes of the hex blob are the IV.
-//
-// IMPORTANT — Node 24 compatibility:
-// The existing @assembly-js/node-sdk uses decipher.final() with autoPadding=true
-// (OpenSSL default). This fails on Node 24 (OpenSSL 3.4/3.5) because OpenSSL's
-// ossl_cipher_unpadblock became stricter about PKCS7 padding validation between
-// OpenSSL 3.0.x (Node 18) and 3.4/3.5 (Node 24). The fix is to disable OpenSSL's
-// auto-padding and strip PKCS7 manually — identical behavior, version-independent.
-export function decryptTokenString(
-  apiKey: string,
-  encryptedToken: string
-): string {
-  const key = Buffer.from(deriveDecryptionKey(apiKey), "hex");
-  const blob = Buffer.from(encryptedToken, "hex");
-  const iv = blob.subarray(0, 16);
-  const cipher = blob.subarray(16);
-  const decipher = nodeCrypto.createDecipheriv("aes-128-cbc", key, iv);
-
-  decipher.setAutoPadding(false); // disable OpenSSL PKCS7 — we strip manually below
-
-  const raw = Buffer.concat([decipher.update(cipher), decipher.final()]);
-
-  // Manual PKCS7 strip: last byte = number of padding bytes (1–16 for 128-bit block)
-  const padLen = raw[raw.length - 1];
-  if (padLen < 1 || padLen > 16) {
-    throw new Error(`Invalid PKCS7 padding byte: ${padLen}`);
-  }
-  return raw.subarray(0, raw.length - padLen).toString("utf-8");
-}
-```
-
-**3.2 — `parseToken()`**
-
-`src/token/parse.ts`:
+Apps that need to inspect the token before constructing the client can use these utilities:
 
 ```ts
-export function parseToken(token: unknown, apiKey: string): TokenPayload;
+import { parseToken, ensureIsClient, createClient } from "assembly-kit";
+
+const payload = parseToken({ token: rawToken, apiKey });
+const client = ensureIsClient(payload);
+
+const assemblyClient = createClient({
+  workspaceId: payload.workspaceId,
+  apiKey,
+  token: rawToken,
+  tokenId: payload.tokenId,
+});
 ```
 
-Step-by-step:
+### Tests (complete — 27 tests passing)
 
-1. If `token` is `null`, `undefined`, or empty string → throw `AssemblyNoTokenError`.
-2. `z.string().min(1).safeParse(token)` — if fails → throw `AssemblyInvalidTokenError`.
-3. `decryptTokenString(apiKey, token)` wrapped in try/catch — any decryption error → throw `AssemblyInvalidTokenError` with original error as `details`.
-4. `TokenPayloadSchema.safeParse(JSON.parse(decrypted))` — if fails → throw `AssemblyInvalidTokenError` with `zodError` as `details`.
-5. Return the validated `TokenPayload`.
-
-`TokenPayloadSchema` uses `.strip()` (default Zod behavior) — unknown fields from future Assembly SDK versions are silently dropped.
-
-**3.3 — `buildCompoundKey()` (internal helper)**
-
-`src/token/parse.ts` also exports this internally (not in public API):
-
-```ts
-// Used by createClient() to build the X-API-Key header value
-export function buildCompoundKey(
-  apiKey: string,
-  payload: TokenPayload
-): string {
-  return payload.tokenId
-    ? `${payload.workspaceId}/${apiKey}/${payload.tokenId}`
-    : `${payload.workspaceId}/${apiKey}`;
-}
-```
-
-**3.4 — Guard functions**
-
-`src/token/guards.ts`:
-
-```ts
-export function ensureIsClient(payload: TokenPayload): ClientTokenPayload;
-export function ensureIsInternalUser(
-  payload: TokenPayload
-): InternalUserTokenPayload;
-export function isClientToken(
-  payload: TokenPayload
-): payload is ClientTokenPayload;
-export function isInternalUserToken(
-  payload: TokenPayload
-): payload is InternalUserTokenPayload;
-```
-
-- `ensureIsClient`: if `payload.clientId` or `payload.companyId` absent → throw `AssemblyUnauthorizedError('Token does not belong to a client user')`.
-- `ensureIsInternalUser`: if `payload.internalUserId` absent → throw `AssemblyUnauthorizedError('Token does not belong to an internal user')`.
-- `isClientToken` / `isInternalUserToken`: pure boolean checks, no throw.
-
-**3.5 — Barrel export**
-
-`src/token/index.ts` re-exports all public symbols. `src/index.ts` re-exports from here.
-
-### Tests
-
-`tests/token.test.ts` — use a known apiKey + pre-generated encrypted token fixture to test the full decrypt path without mocking crypto:
-
-- `parseToken(undefined, apiKey)` → `AssemblyNoTokenError`.
-- `parseToken('', apiKey)` → `AssemblyNoTokenError`.
-- `parseToken(123, apiKey)` → `AssemblyInvalidTokenError`.
-- `parseToken('not-valid-hex', apiKey)` → `AssemblyInvalidTokenError`.
-- `parseToken(validClientToken, apiKey)` → correct `TokenPayload` with `clientId` + `companyId`.
-- `parseToken(validInternalUserToken, apiKey)` → correct `TokenPayload` with `internalUserId`.
-- `parseToken(tokenWithTokenId, apiKey)` → payload includes `tokenId`.
-- `parseToken(tokenWithBaseUrl, apiKey)` → payload includes `baseUrl`.
-- `buildCompoundKey(apiKey, payloadWithoutTokenId)` → `'workspaceId/apiKey'`.
-- `buildCompoundKey(apiKey, payloadWithTokenId)` → `'workspaceId/apiKey/tokenId'`.
-- `ensureIsClient(clientPayload)` → narrowed type returned.
-- `ensureIsClient(internalUserPayload)` → `AssemblyUnauthorizedError`.
-- `ensureIsInternalUser(internalUserPayload)` → narrowed type.
-- `ensureIsInternalUser(clientPayload)` → `AssemblyUnauthorizedError`.
-- `isClientToken` / `isInternalUserToken` type predicates: correct boolean results, no throw.
-
-**Test fixtures note:** Generate a matching `apiKey` + encrypted `token` pair from the existing `@assembly-js/node-sdk` crypto utilities (run once, save output as constants in `tests/fixtures/tokens.ts`). This makes the tests independent of any external service.
-
-- Specifically generate fixtures where the plaintext JSON length is **exactly a multiple of 16 bytes** (block-aligned) to reproduce the Node 24 PKCS7 padding edge case. This is the class of tokens that fail on OpenSSL 3.4/3.5 with `autoPadding=true` but must succeed with our manual strip approach.
+- `parseToken` — null/empty/non-string/invalid/valid tokens
+- `createToken` — round-trip, random IV, invalid payload
+- `buildCompoundKey` — with/without tokenId
+- `ensureIsClient` / `ensureIsInternalUser` — correct narrowing + error throwing
+- `isClientToken` / `isInternalUserToken` — boolean predicates
+- Block-aligned token — Node 24 PKCS7 edge case
 
 ---
 
@@ -401,7 +312,7 @@ The internal engine for all HTTP calls. Handles rate limiting, retry, auth heade
 
 - `createTransport(options: TransportOptions): Transport`
 - `TransportOptions`:
-  - `compoundKey: string` — the pre-built `X-API-Key` value (not the raw apiKey)
+  - `compoundKey: string` — the pre-built `X-API-Key` value (`workspaceId/apiKey` or `workspaceId/apiKey/tokenId`)
   - `baseUrl: string`
   - `retryCount: number`
   - `retryMinTimeout: number`
@@ -489,7 +400,8 @@ Re-exported from `src/index.ts`.
 
 ## Feature 6: Client Factory & Resource Classes
 
-> Dependency: Feature 1, 2, 3, 4, 5
+> Dependency: Feature 1, 2, 4, 5
+> **Note:** Feature 3 (Token Utilities) is **not** a dependency. The client factory does not parse tokens — it receives `workspaceId` explicitly and treats `token` as an opaque string.
 
 ### What we're building
 
@@ -509,8 +421,7 @@ src/resources/
 ├── internal-users.ts
 ├── notifications.ts
 ├── custom-fields.ts
-├── tasks.ts
-└── token.ts
+└── tasks.ts
 ```
 
 ### Implementation Steps
@@ -521,9 +432,11 @@ src/resources/
 
 ```ts
 export type ClientOptions = {
-  apiKey: string;
-  token?: string;
+  workspaceId: string; // required — always needed for compound key
+  apiKey: string; // required
+  token?: string; // raw encrypted token string — NOT parsed or decrypted
   isMarketplaceApp?: boolean; // default false
+  tokenId?: string; // optional — appended to compound key if provided
   retryCount?: number; // default 2
   retryMinTimeout?: number; // default 1000
   retryMaxTimeout?: number; // default 5000
@@ -569,7 +482,6 @@ class AssemblyClient {
   readonly notifications: NotificationsResource;
   readonly customFields: CustomFieldsResource;
   readonly tasks: TasksResource;
-  readonly token: TokenResource;
 }
 ```
 
@@ -585,19 +497,16 @@ export function createClient(options: ClientOptions): AssemblyClient;
 
 Validation & construction sequence (all synchronous — no network call at construction):
 
-1. **Validate `apiKey`**: if empty/missing → throw `AssemblyMissingApiKeyError`.
-2. **Marketplace token guard**: if `isMarketplaceApp === true` and `token` is absent/empty → throw `AssemblyNoTokenError('Marketplace apps require a token')`.
-3. **Token decryption** (if `token` provided):
-   - Call `parseToken(token, apiKey)` → `TokenPayload`.
-   - On failure → throw `AssemblyInvalidTokenError` (already thrown by `parseToken`).
-   - Build `compoundKey = buildCompoundKey(apiKey, payload)`.
-   - If `payload.baseUrl` is set, use it as `effectiveBaseUrl`; otherwise use `options.baseUrl ?? 'https://api.assembly.com'`.
-   - Store the parsed `TokenPayload` on the client instance.
-4. **No token**: `compoundKey = apiKey` (for custom apps in environments that support raw-key auth).
+1. **Validate `workspaceId`**: if empty/missing → throw `AssemblyMissingApiKeyError`.
+2. **Validate `apiKey`**: if empty/missing → throw `AssemblyMissingApiKeyError`.
+3. **Marketplace token guard**: if `isMarketplaceApp === true` and `token` is absent/empty → throw `AssemblyNoTokenError('Marketplace apps require a token')`.
+4. **Build compound key**: `${workspaceId}/${apiKey}` (or `${workspaceId}/${apiKey}/${tokenId}` if `tokenId` is provided).
 5. Create rate limiter (new `p-throttle` instance).
-6. Create transport (new `ky` instance with `compoundKey`, `effectiveBaseUrl`, throttle).
-7. Construct `AssemblyClient` with token payload + transport + options.
+6. Create transport (new `ky` instance with `compoundKey`, `baseUrl`, throttle).
+7. Construct `AssemblyClient` with transport + options. The `token` string is stored for resource methods that may need to forward it.
 8. Return client.
+
+No token parsing or decryption happens. The token is an opaque string.
 
 **6.5 — Export from main entry**
 
@@ -607,14 +516,13 @@ Validation & construction sequence (all synchronous — no network call at const
 
 `tests/client.test.ts`:
 
-- `createClient({ apiKey: '' })` → `AssemblyMissingApiKeyError`.
-- `createClient({ apiKey: 'key', isMarketplaceApp: true })` (no token) → `AssemblyNoTokenError`.
-- `createClient({ apiKey: 'key', isMarketplaceApp: true, token: validToken })` → constructs successfully.
-- `createClient({ apiKey: 'key' })` (no token, no isMarketplaceApp) → constructs successfully.
-- `createClient({ apiKey: 'key', token: 'bad-token' })` → `AssemblyInvalidTokenError`.
-- `createClient({ apiKey: 'key', token: validToken })` → parsed token payload accessible.
-- Token with `baseUrl` → transport uses token's `baseUrl`, not default.
-- Token with `tokenId` → `X-API-Key` includes `tokenId` in compound key.
+- `createClient({ workspaceId: '', apiKey: 'key' })` → `AssemblyMissingApiKeyError`.
+- `createClient({ workspaceId: 'ws', apiKey: '' })` → `AssemblyMissingApiKeyError`.
+- `createClient({ workspaceId: 'ws', apiKey: 'key', isMarketplaceApp: true })` (no token) → `AssemblyNoTokenError`.
+- `createClient({ workspaceId: 'ws', apiKey: 'key', isMarketplaceApp: true, token: 'tok' })` → constructs successfully.
+- `createClient({ workspaceId: 'ws', apiKey: 'key' })` (no token, no isMarketplaceApp) → constructs successfully.
+- `tokenId` provided → `X-API-Key` includes `tokenId` in compound key: `ws/key/tokenId`.
+- No `tokenId` → `X-API-Key` is `ws/key`.
 - Two calls to `createClient()` produce independent instances (separate transport, separate rate limiters).
 - `client.clients.list()` → transport called with correct path and `X-API-Key` header.
 - `client.clients.get(id)` → transport called with `/clients/{id}`.
@@ -834,22 +742,20 @@ Phase 0: Scaffold
     ↓
 Feature 1: Error Model
     ↓
-Feature 2: Schemas           Feature 7: App Bridge
-    ↓                              ↓
-Feature 3: Token Utils       Feature 8: React Hooks
-    ↓
-Feature 4: Transport
+Feature 2: Schemas           Feature 3: Token Utils (optional)     Feature 7: App Bridge
+    ↓                              (standalone, no deps on 4-6)          ↓
+Feature 4: Transport                                              Feature 8: React Hooks
     ↓
 Feature 5: Pagination
     ↓
-Feature 6: Client Factory
+Feature 6: Client Factory (does NOT depend on Feature 3)
     ↓
 Feature 9: Build Config
     ↓
 Feature 10: JSDoc
 ```
 
-Features 7 and 8 (App Bridge) can be developed in parallel with Features 3–6 since they have no shared dependencies.
+Features 3, 7, and 8 can be developed in parallel with Features 4–6 since they have no shared dependencies. Feature 3 (Token Utilities) is standalone — it does not block or depend on the client factory. Feature 6 (Client Factory) receives `workspaceId` explicitly and does not parse tokens.
 
 ---
 

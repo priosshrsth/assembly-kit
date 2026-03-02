@@ -13,7 +13,7 @@ Legend: ✅ done · 🚧 in progress · ⬜ not started
 - ✅ `src` path alias (`@/*`) configured in tsconfig.json
 - ✅ `bunup.config.ts` — 4 entry points (index, schemas, app-bridge, bridge-ui)
 - ✅ Runtime deps: `zod` installed
-- ⬜ Runtime deps: `ky`, `p-throttle` (needed for Feature 4)
+- ✅ Runtime deps: `ky`, `p-throttle` (installed for Feature 4)
 - ✅ Entry point stubs: `src/schemas/index.ts`, `src/app-bridge/index.ts`, `src/bridge-ui/index.ts`
 - ✅ Test fixtures: `test/fixtures/tokens.ts` (encrypted token constants for token tests)
 
@@ -118,29 +118,43 @@ Legend: ✅ done · 🚧 in progress · ⬜ not started
 
 ---
 
-## Feature 4: HTTP Transport Layer
+## Feature 4: HTTP Transport Layer ✅
 
 > Dependencies: Feature 1 · Install: `ky`, `p-throttle`
 
-- ⬜ `bun add ky p-throttle`
-- ⬜ `src/transport/rate-limiter.ts` — `createRateLimiter(requestsPerSecond)`
-- ⬜ `src/transport/error-mapper.ts` — `mapHttpError(response)` → typed `AssemblyError`
-- ⬜ `src/transport/http.ts` — `createTransport(options)` with injectable `fetch`
-  - ⬜ `X-API-Key` header (not `Authorization: Bearer`)
-  - ⬜ `X-Assembly-SDK-Version` header
-  - ⬜ Retry on 429 / 5xx only, exponential backoff, respects `Retry-After`
-  - ⬜ Rate limiting via `p-throttle` in `beforeRequest` hook
-- ⬜ `test/transport.test.ts` (all via mock `fetch` — no real HTTP calls)
-  - ⬜ 200 → resolves with parsed JSON
-  - ⬜ 404 → `AssemblyNotFoundError`
-  - ⬜ 429 + `Retry-After` → `AssemblyRateLimitError` with `retryAfter`
-  - ⬜ 429 once then 200 → successful retry
-  - ⬜ 503 → retries then `AssemblyServerError`
-  - ⬜ 21 concurrent calls → 21st is delayed by rate limiter
-  - ⬜ `X-API-Key` header verified
-  - ⬜ `X-Assembly-SDK-Version` header verified
-- ⬜ `bun run type-check` passes
-- ⬜ `bun test` passes
+- ✅ `bun add ky p-throttle` (ky@1.14.3, p-throttle@8.1.0)
+- ✅ `src/transport/http.ts` — single-file transport: `createTransport(options)`, rate limiter, error mapper
+  - ✅ `X-API-Key` header (not `Authorization: Bearer`)
+  - ✅ `X-Assembly-SDK-Version` header
+  - ✅ Retry via ky defaults (exponential backoff, respects `Retry-After`), configurable `retryCount`
+  - ✅ Rate limiting via `p-throttle` in `beforeRequest` hook (fires on retries too)
+  - ✅ Default base URL (`https://app.assembly.com/api/v1`) with optional override
+  - ✅ Strips leading `/` from paths (ky prefixUrl requirement)
+- ✅ `test/transport.test.ts` (39 tests, all via mock `fetch` — no real HTTP calls)
+  - ✅ GET/POST/PATCH/DELETE 200 → resolves with parsed JSON
+  - ✅ 400 → `AssemblyValidationError`, 401 → `AssemblyUnauthorizedError`
+  - ✅ 403 → `AssemblyForbiddenError`, 404 → `AssemblyNotFoundError`
+  - ✅ 422 → `AssemblyValidationError`
+  - ✅ 429 + `Retry-After` → `AssemblyRateLimitError` with `retryAfter`
+  - ✅ 429 without `Retry-After` → `AssemblyRateLimitError` with `undefined` retryAfter
+  - ✅ 500/502/503 → `AssemblyServerError`
+  - ✅ 429 once then 200 → successful retry
+  - ✅ 503 once then 200 → successful retry
+  - ✅ 503 exhausts retries → `AssemblyServerError`
+  - ✅ retryCount: 0 → no retries
+  - ✅ 21 concurrent calls with 20/s limit → all resolve
+  - ✅ Rate limiter delays requests beyond the limit (timing verified)
+  - ✅ `X-API-Key` header verified (not `Authorization`)
+  - ✅ `X-Assembly-SDK-Version` header verified
+  - ✅ `Content-Type: application/json` on mutations
+  - ✅ Network failure → `AssemblyConnectionError` with cause
+  - ✅ Response body preserved as `details` on errors
+  - ✅ `parseRetryAfter` unit tests (9 tests: null, empty, integer, zero, decimal, negative, HTTP-date future/past, unparseable)
+- ✅ `bun run type-check` passes
+- ✅ `bun run lint` passes
+- ✅ `bun test` passes (193 tests across 5 files)
+
+> **Note:** Transport is a single file (`src/transport/http.ts`) — no barrel, no separate rate-limiter/error-mapper files. Consumed by the client factory (Feature 6), not exported from the main entry point. Uses ky's built-in retry with only `limit` and `methods` overridden. Error mapping uses try/catch around ky requests, converting `HTTPError` to typed `AssemblyError` subclasses and all other errors to `AssemblyConnectionError`.
 
 ---
 

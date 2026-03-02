@@ -1,10 +1,10 @@
 # assembly-kit — Product Requirements Document
 
-**Version:** 1.1
+**Version:** 1.2
 **Status:** Draft
 **Author:** Anit Shrestha
 **Date:** 2026-02-28
-**Updated:** 2026-02-28 — Token internals verified; `isMarketplaceApp` flag added; auth header corrected; token payload expanded.
+**Updated:** 2026-03-01 — SDK no longer parses tokens; `workspaceId` is a required constructor parameter; token is a pass-through string.
 
 ---
 
@@ -16,7 +16,7 @@ Every app built on the Assembly platform currently duplicates the same SDK integ
 
 ### 1.2 Solution
 
-`assembly-kit` is a production-grade, TypeScript-first SDK designed to be a single, well-maintained package that all Assembly apps can depend on. It abstracts the full lifecycle of interacting with the Assembly platform — from parsing iframe tokens and enforcing user identity, to making rate-limited, retry-safe API calls with full Zod-validated response types, to wiring app-bridge postMessage interactions with the Assembly dashboard.
+`assembly-kit` is a production-grade, TypeScript-first SDK designed to be a single, well-maintained package that all Assembly apps can depend on. It abstracts the full lifecycle of interacting with the Assembly platform — from making rate-limited, retry-safe API calls with full Zod-validated response types, to wiring app-bridge postMessage interactions with the Assembly dashboard. Token decryption utilities are available as optional standalone exports for apps that need to inspect token contents.
 
 ### 1.3 Goals
 
@@ -40,10 +40,10 @@ Every app built on the Assembly platform currently duplicates the same SDK integ
 
 | Persona                                                      | Use Case                                                                                                                |
 | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
-| Developer building a **custom app** (single workspace)       | Single API key, single workspace. Needs `createClient()` scoped to that workspace, token parsing, and API access.       |
-| Developer building a **marketplace app** (multi-workspace)   | Single API key installed across many workspaces. Must create a fresh client per request — no shared state.              |
+| Developer building a **custom app** (single workspace)       | Single API key, single workspace. Needs `createClient()` scoped to that workspace with explicit `workspaceId`.          |
+| Developer building a **marketplace app** (multi-workspace)   | Single API key installed across many workspaces. Must create a fresh client per request with `workspaceId` + `token`.   |
 | Developer building a **React app embedded in the dashboard** | Needs the app-bridge hooks (`usePrimaryCta`, `useSecondaryCta`, `useActionsMenu`) to control Assembly dashboard chrome. |
-| Developer writing a **server action / API route** in Next.js | Needs `parseToken()`, `ensureIsClient()`, `ensureIsInternalUser()` guards, plus typed API responses.                    |
+| Developer writing a **server action / API route** in Next.js | Needs `createClient()` with typed API responses. Can optionally use `parseToken()` to inspect token contents.           |
 
 ---
 
@@ -74,44 +74,51 @@ assembly-kit
 The primary entry point. Returns a fully isolated client instance. Never shares state between calls — safe for Vercel, Cloudflare Workers, and any compute platform.
 
 **Background: how the existing SDK works (and why it's unsafe)**
-`@assembly-js/node-sdk` stores auth headers on a module-level `OpenAPI` singleton. In a serverless environment (Vercel, Cloudflare Workers), concurrent requests within the same runtime instance share that singleton — meaning tenant A's request can end up using tenant B's credentials. `assembly-kit` solves this by keeping _all state inside each `createClient()` instance_: HTTP transport, rate limiter, parsed token, and compound auth key.
+`@assembly-js/node-sdk` stores auth headers on a module-level `OpenAPI` singleton. In a serverless environment (Vercel, Cloudflare Workers), concurrent requests within the same runtime instance share that singleton — meaning tenant A's request can end up using tenant B's credentials. `assembly-kit` solves this by keeping _all state inside each `createClient()` instance_: HTTP transport, rate limiter, and compound auth key.
+
+**Key design decision: no token parsing**
+The SDK does **not** decrypt or parse the token. The token is treated as an opaque string that the caller provides. The `workspaceId` is an explicit required parameter — the caller is responsible for knowing which workspace they are operating in. This simplifies the SDK, removes the `node:crypto` dependency from the core client path, and makes it possible to use the SDK in environments where crypto is unavailable (e.g. edge runtimes). Token decryption utilities (`parseToken`, `createToken`) are still available as optional standalone exports for apps that need to inspect token contents.
 
 **Requirements**
 
 - `createClient(options: ClientOptions): AssemblyClient`
 - `ClientOptions`:
+  - `workspaceId: string` — **required**. The Assembly workspace ID. Always needed to construct the compound API key.
   - `apiKey: string` — required. Assembly API key for the workspace or marketplace app.
-  - `token?: string` — conditionally required (see `isMarketplaceApp` below). The AES-128-CBC encrypted iframe token from the `?token=` query parameter.
+  - `token?: string` — conditionally required (see `isMarketplaceApp` below). The raw encrypted iframe token from the `?token=` query parameter. Passed through as-is — **not decrypted or parsed** by the SDK.
   - `isMarketplaceApp?: boolean` — default `false`.
-    - When `true`: `token` is **required**. Throw `AssemblyNoTokenError` at construction time if `token` is absent or empty. Marketplace apps are installed across many workspaces and must always operate in the context of a specific workspace identified by the token.
-    - When `false`: `token` is optional. The client can still be used for endpoints that don't require workspace-user context (e.g. workspace-level admin operations in a custom app with a dedicated API key).
+    - When `true`: `token` is **required**. Throw `AssemblyNoTokenError` at construction time if `token` is absent or empty. Marketplace apps are installed across many workspaces and must always operate in the context of a specific user session identified by the token.
+    - When `false`: `token` is optional. The client can be used without a token for endpoints that don't require user context (e.g. workspace-level admin operations in a custom app with a dedicated API key).
+  - `tokenId?: string` — optional. If provided, it is appended to the compound API key: `${workspaceId}/${apiKey}/${tokenId}`. Used by some marketplace app tokens.
   - `retryCount?: number` — default `2`. Max retry attempts for 429 / 5xx responses.
   - `retryMinTimeout?: number` — default `1000`. Min delay in ms between retries.
   - `retryMaxTimeout?: number` — default `5000`. Max delay between retries (exponential backoff).
   - `rateLimitPerSecond?: number` — default `20`. Maximum requests per second to stay within Assembly's limit.
   - `validateResponses?: boolean` — default `true`. When `true`, all responses are parsed through Zod schemas. When `false`, raw typed responses are returned (for performance or when types are trusted).
-  - `baseUrl?: string` — default `https://api.assembly.com`. Overridden at construction if the decrypted token contains a `baseUrl` field (token-level `baseUrl` takes precedence over this option).
+  - `baseUrl?: string` — default `https://api.assembly.com`. The caller is responsible for overriding this when needed (e.g. staging environments or when the token payload contains a `baseUrl` field).
 - Each `createClient()` call MUST create a new instance of the HTTP transport, rate limiter, and retry handler. No module-level singletons — all state is instance-scoped.
-- At construction time, if `token` is provided:
-  1. Decrypt and parse the token locally (see §4.2 / node-sdk-internals.md). No network call.
-  2. Construct the compound API key: `${workspaceId}/${apiKey}` (or `${workspaceId}/${apiKey}/${tokenId}` if `tokenId` is present in payload).
-  3. If `tokenPayload.baseUrl` exists, use it as the transport base URL.
-- If `token` is NOT provided (and `isMarketplaceApp` is `false`), the raw `apiKey` alone cannot form a valid compound key for production. The client is still constructed, but only endpoints that can authenticate with the raw key will work. Endpoints requiring token context will throw `AssemblyNoTokenError` at call time.
-- The client exposes resource namespaces: `client.workspace`, `client.clients`, `client.companies`, `client.internalUsers`, `client.notifications`, `client.customFields`, `client.tasks`, `client.token`.
+- At construction time:
+  1. Validate `workspaceId` is non-empty.
+  2. Validate `apiKey` is non-empty.
+  3. If `isMarketplaceApp === true`, validate `token` is non-empty.
+  4. Construct the compound API key: `${workspaceId}/${apiKey}` (or `${workspaceId}/${apiKey}/${tokenId}` if `tokenId` is provided).
+  5. Create rate limiter and HTTP transport with the compound key, base URL, and retry config.
+- The token string is stored on the client instance for potential use by resource methods that need to forward it (e.g. token-scoped endpoints), but is **never parsed or decrypted** by the SDK.
+- The client exposes resource namespaces: `client.workspace`, `client.clients`, `client.companies`, `client.internalUsers`, `client.notifications`, `client.customFields`, `client.tasks`.
 
 **App type mental model**
 
-| App type                           | `isMarketplaceApp` | `token`  | Behaviour                                                                             |
-| ---------------------------------- | ------------------ | -------- | ------------------------------------------------------------------------------------- |
-| Marketplace app                    | `true`             | Required | Token required at construction. Compound key used for all requests.                   |
-| Custom app (with user context)     | `false`            | Provided | Token parsed at construction. Compound key used.                                      |
-| Custom app (admin/no-user context) | `false`            | Omitted  | Raw apiKey used. Token-requiring endpoints throw `AssemblyNoTokenError` at call time. |
+| App type                           | `isMarketplaceApp` | `token`  | `workspaceId` | Behaviour                                                        |
+| ---------------------------------- | ------------------ | -------- | ------------- | ---------------------------------------------------------------- |
+| Marketplace app                    | `true`             | Required | Required      | Token + workspaceId required at construction. Compound key used. |
+| Custom app (with user context)     | `false`            | Provided | Required      | Token forwarded as-is. Compound key used.                        |
+| Custom app (admin/no-user context) | `false`            | Omitted  | Required      | Compound key used. Token-requiring endpoints throw at call time. |
 
 **Error behaviour**
 
+- `workspaceId` empty or missing → throw `AssemblyMissingApiKeyError` immediately on construction.
 - `apiKey` empty or missing → throw `AssemblyMissingApiKeyError` immediately on construction.
 - `isMarketplaceApp: true` + no `token` → throw `AssemblyNoTokenError` immediately on construction.
-- `token` provided but fails decryption or payload validation → throw `AssemblyInvalidTokenError` on construction.
 
 ---
 
@@ -184,24 +191,26 @@ A structured, typed hierarchy of errors making error handling predictable and ex
 
 ---
 
-### 4.4 Feature: Token Utilities
+### 4.4 Feature: Token Utilities (Optional Standalone Exports)
 
 **Description**
-Standalone functions for decrypting, parsing, validating, and guarding Assembly iframe tokens. Token decryption is **fully local** (no network call) — see `docs/planning/node-sdk-internals.md` §2 for the full algorithm.
+Optional standalone functions for decrypting, parsing, creating, and guarding Assembly iframe tokens. These utilities are **not used internally** by `createClient` — the SDK treats the token as an opaque string. They are exported for apps that need to inspect or create token contents (e.g. server-side route handlers that need to determine user type before making API calls).
+
+Token decryption is **fully local** (no network call) — see `docs/planning/node-sdk-internals.md` §2 for the full algorithm.
 
 **Token decryption algorithm (reimplemented from `@assembly-js/node-sdk`, no dep needed)**
 
-1. `generate128BitKey(apiKey: string): string` — HMAC-SHA256 of the API key, take first 32 hex chars.
-2. `decryptToken(apiKey: string, encryptedToken: string): string` — AES-128-CBC decrypt. The hex-encoded token's first 16 bytes are the IV; the rest is ciphertext. Returns UTF-8 JSON string.
-3. `parseTokenPayload(json: string): TokenPayload` — JSON.parse + Zod schema validation.
+1. `deriveKey(apiKey: string): string` — HMAC-SHA256 of the API key, take first 32 hex chars.
+2. `decryptTokenString({ apiKey, encryptedToken }): string` — AES-128-CBC decrypt with dual strategy (native autoPadding first, manual PKCS7 fallback for Node 24 compat). Returns UTF-8 JSON string.
+3. `encryptTokenString({ apiKey, plaintext }): string` — AES-128-CBC encrypt with random IV. Produces hex-encoded token string.
 
 **Requirements**
 
-- `parseToken(token: unknown, apiKey: string): TokenPayload`
+- `parseToken({ token, apiKey }): TokenPayload`
   - Accepts the raw `?token=` query parameter value and the workspace API key.
   - All decryption is synchronous — no `await` needed.
   - Throws `AssemblyNoTokenError` if `token` is nullish or empty.
-  - Throws `AssemblyInvalidTokenError` if the string cannot be decrypted or the payload fails the schema (includes the underlying error as `details`).
+  - Throws `AssemblyInvalidTokenError` if the string cannot be decrypted or the payload fails the schema (includes the underlying error as `cause`).
   - Unknown fields in the token JSON are **silently stripped** (forward-compatible — Assembly may add fields in future versions).
   - Returns typed `TokenPayload`:
     ```ts
@@ -212,9 +221,19 @@ Standalone functions for decrypting, parsing, validating, and guarding Assembly 
       internalUserId?: string; // present for internal (team member) users
       notificationId?: string; // present when token is notification-scoped
       tokenId?: string; // present in some marketplace tokens; used in compound key
-      baseUrl?: string; // if present, overrides the API base URL for this session
+      baseUrl?: string; // if present, the app should use this as the API base URL
     };
     ```
+
+- `createToken({ payload, apiKey }): string`
+  - Validates payload against `TokenPayloadSchema`, serializes to JSON, encrypts with AES-128-CBC.
+  - Throws `AssemblyInvalidTokenError` if payload fails validation.
+  - Each call produces a different ciphertext (random IV).
+
+- `buildCompoundKey({ apiKey, payload }): string`
+  - Builds the compound API key string from the token payload.
+  - With `tokenId`: `${workspaceId}/${apiKey}/${tokenId}`
+  - Without `tokenId`: `${workspaceId}/${apiKey}`
 
 - `ensureIsClient(payload: TokenPayload): ClientTokenPayload`
   - Narrows payload to `{ workspaceId, clientId, companyId, ...rest }`.
@@ -227,14 +246,14 @@ Standalone functions for decrypting, parsing, validating, and guarding Assembly 
 - `isClientToken(payload: TokenPayload): payload is ClientTokenPayload` — type predicate, no throw.
 - `isInternalUserToken(payload: TokenPayload): payload is InternalUserTokenPayload` — type predicate, no throw.
 
-**Internal compound key construction (used by the transport layer, not public API)**
+**Compound key construction (used by `createClient` internally, also exported)**
 
 ```
 tokenId present: `${workspaceId}/${apiKey}/${tokenId}`
 tokenId absent:  `${workspaceId}/${apiKey}`
 ```
 
-This string is the value of the `X-API-Key` header on all requests.
+This string is the value of the `X-API-Key` header on all requests. In the client factory, the compound key is built from the explicit `workspaceId`, `apiKey`, and optional `tokenId` constructor parameters — not from a parsed token.
 
 ---
 
@@ -286,10 +305,6 @@ All resource methods:
 **Resource: `client.customFields`**
 
 - `list(entityType: 'client' | 'company'): Promise<ListCustomFieldResponse>`
-
-**Resource: `client.token`**
-
-- `getPayload(): Promise<TokenPayload>` — requires `token` to have been passed to `createClient()`.
 
 **Pagination:**
 
@@ -490,10 +505,10 @@ assembly-kit/
 │   │   ├── internal-users.ts
 │   │   ├── notifications.ts
 │   │   ├── custom-fields.ts
-│   │   ├── tasks.ts
-│   │   └── token.ts
+│   │   └── tasks.ts
 │   ├── token/
-│   │   ├── parse.ts              # parseToken()
+│   │   ├── crypto.ts             # deriveKey(), decryptTokenString(), encryptTokenString() (internal)
+│   │   ├── parse.ts              # parseToken(), createToken(), buildCompoundKey()
 │   │   └── guards.ts             # ensureIsClient(), ensureIsInternalUser(), predicates
 │   ├── errors/
 │   │   ├── base.ts               # AssemblyError, createAssemblyError factory
@@ -556,17 +571,26 @@ assembly-kit/
 
 ```
 Request arrives at Next.js route/action
-  → Extract token from searchParams/headers
-  → parseToken(token)              → TokenPayload | throws AssemblyNoTokenError/AssemblyInvalidTokenError
-  → ensureIsClient(payload)        → ClientTokenPayload | throws AssemblyUnauthorizedError
-  → createClient({ apiKey, token })
+  → Extract token + workspaceId from searchParams/headers/env
+  → createClient({ workspaceId, apiKey, token })
   → client.clients.list()
       → rate limiter (p-throttle)
-      → ky.get('/clients')
+      → ky.get('/clients') with X-API-Key: workspaceId/apiKey
       → on 429: wait retryAfter, retry (max 2x)
       → on 5xx: exponential backoff, retry (max 2x)
       → response → Zod parse → ClientsResponse
       → return typed data to route handler
+```
+
+### 6.1b Optional: Inspecting the token (for apps that need user type info)
+
+```
+Request arrives at Next.js route/action
+  → Extract token from searchParams
+  → parseToken({ token, apiKey })  → TokenPayload (optional, standalone utility)
+  → ensureIsClient(payload)        → ClientTokenPayload | throws AssemblyUnauthorizedError
+  → createClient({ workspaceId: payload.workspaceId, apiKey, token, tokenId: payload.tokenId })
+  → client.clients.list()
 ```
 
 ### 6.2 App Bridge (in-iframe React app)
@@ -588,8 +612,8 @@ React component mounts
 
 - **No module-level singleton client**: Prevents token/apiKey leakage between concurrent serverless requests.
 - **App-bridge origin validation**: `sendToParent` only posts to known Assembly dashboard origins; no wildcard `*` target.
-- **API keys never logged**: Transport layer MUST NOT log the `Authorization` header or `apiKey` value.
-- **Token never stored**: Token string is only decoded into payload; raw token is not persisted anywhere by the SDK.
+- **API keys never logged**: Transport layer MUST NOT log the `X-API-Key` header or `apiKey` value.
+- **Token treated as opaque**: The SDK does not decrypt or inspect the token — it is forwarded as-is. This reduces the attack surface and avoids exposing decrypted token contents in memory.
 - **Zod schema validation**: Response validation catches unexpected shape changes from Assembly API before they cause downstream data corruption.
 
 ---
@@ -628,4 +652,4 @@ React component mounts
 | 3   | What is the exact format of the `Retry-After` header from Assembly's 429 responses?                                                                                                    | Needs verification against API docs                                                                                                                                                                                           |
 | 4   | Should `assembly-kit/bridge-ui` be a separate npm package to avoid shipping React as a dep for pure server users?                                                                      | Decision needed                                                                                                                                                                                                               |
 | 5   | Tasks endpoint (`/tasks/public`) uses a custom token encoding — should `encodePayload` from crypto utils be part of assembly-kit or remain app-specific?                               | Decision needed                                                                                                                                                                                                               |
-| 6   | For custom apps with no token provided, only local/staging envs are supported by the existing SDK. Does Assembly's production API accept a raw `apiKey` without a compound key at all? | Needs verification                                                                                                                                                                                                            |
+| 6   | For custom apps with no token provided, only local/staging envs are supported by the existing SDK. Does Assembly's production API accept a raw `apiKey` without a compound key at all? | **Resolved** — `workspaceId` is now a required constructor parameter, so a compound key (`workspaceId/apiKey`) is always constructed. Raw apiKey alone is never sent.                                                         |
