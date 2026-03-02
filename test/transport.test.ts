@@ -53,6 +53,34 @@ const FAILING_FETCH = (() => {
   throw new TypeError("fetch failed");
 }) as unknown as FetchFn;
 
+/**
+ * Creates a fetch that throws TypeError on the first `failCount` calls,
+ * then succeeds with `{ ok: true }`.
+ */
+const createNetworkFailureFetch = (
+  failCount: number
+): { fetch: FetchFn; getCallCount: () => number } => {
+  let callCount = 0;
+  const fetch = (
+    _input: RequestInfo | URL,
+    _init?: RequestInit
+  ): Promise<Response> => {
+    callCount += 1;
+    if (callCount <= failCount) {
+      throw new TypeError("fetch failed");
+    }
+    return Promise.resolve(Response.json({ ok: true }, { status: 200 }));
+  };
+  return { fetch: fetch as FetchFn, getCallCount: () => callCount };
+};
+
+/** Creates a fetch that records timestamps for measuring rate limiter delays. */
+const createTimestampFetch = (timestamps: number[]): FetchFn =>
+  ((_input: RequestInfo | URL, _init?: RequestInit): Promise<Response> => {
+    timestamps.push(Date.now());
+    return Promise.resolve(Response.json({ ok: true }, { status: 200 }));
+  }) as FetchFn;
+
 /** Safely access a mock call by index (narrows past noUncheckedIndexedAccess). */
 const callAt = (calls: MockCall[], index = 0): MockCall => {
   const c = calls[index];
@@ -476,6 +504,46 @@ describe("createTransport", () => {
       expect(calls.length).toBeGreaterThanOrEqual(2);
     });
 
+    it("429 → 429 → 200 with retryCount: 2 → resolves after multiple retries", async () => {
+      const { fetch, calls } = createMockFetch([
+        { headers: { "Retry-After": "0" }, status: 429 },
+        { headers: { "Retry-After": "0" }, status: 429 },
+        { body: { data: "finally" }, status: 200 },
+      ]);
+      const transport = createTestTransport({ fetch, retryCount: 2 });
+
+      const result = await transport.get<{ data: string }>("/clients");
+
+      expect(result).toEqual({ data: "finally" });
+      expect(calls.length).toBeGreaterThanOrEqual(3);
+    });
+
+    it("POST is retried on 503 (methods override)", async () => {
+      const { fetch, calls } = createMockFetch([
+        { status: 503 },
+        { body: { id: "new" }, status: 200 },
+      ]);
+      const transport = createTestTransport({ fetch, retryCount: 1 });
+
+      const result = await transport.post<{ id: string }>("/clients", {
+        name: "Acme",
+      });
+
+      expect(result).toEqual({ id: "new" });
+      expect(calls.length).toBeGreaterThanOrEqual(2);
+      expect(callAt(calls).method).toBe("POST");
+    });
+
+    it("transient network error → retries and recovers", async () => {
+      const { fetch, getCallCount } = createNetworkFailureFetch(1);
+      const transport = createTestTransport({ fetch, retryCount: 1 });
+
+      const result = await transport.get<{ ok: boolean }>("/clients");
+
+      expect(result).toEqual({ ok: true });
+      expect(getCallCount()).toBe(2);
+    });
+
     it("503 exhausts retries → AssemblyServerError", async () => {
       const { fetch, calls } = createMockFetch([
         { status: 503 },
@@ -509,6 +577,38 @@ describe("createTransport", () => {
       }
       expect(calls).toHaveLength(1);
     });
+
+    it("401 is NOT retried (non-retryable status)", async () => {
+      const { fetch, calls } = createMockFetch([
+        { status: 401 },
+        { body: {}, status: 200 },
+      ]);
+      const transport = createTestTransport({ fetch, retryCount: 2 });
+
+      try {
+        await transport.get("/clients");
+        expect.unreachable("Should have thrown");
+      } catch (error) {
+        expect(error).toBeInstanceOf(AssemblyUnauthorizedError);
+      }
+      expect(calls).toHaveLength(1);
+    });
+
+    it("404 is NOT retried (non-retryable status)", async () => {
+      const { fetch, calls } = createMockFetch([
+        { status: 404 },
+        { body: {}, status: 200 },
+      ]);
+      const transport = createTestTransport({ fetch, retryCount: 2 });
+
+      try {
+        await transport.get("/clients");
+        expect.unreachable("Should have thrown");
+      } catch (error) {
+        expect(error).toBeInstanceOf(AssemblyNotFoundError);
+      }
+      expect(calls).toHaveLength(1);
+    });
   });
 
   // ------- Rate limiting -------
@@ -534,17 +634,10 @@ describe("createTransport", () => {
 
     it("rate limiter delays requests beyond the limit", async () => {
       const timestamps: number[] = [];
-      const mockFetch = (
-        _input: RequestInfo | URL,
-        _init?: RequestInit
-      ): Promise<Response> => {
-        timestamps.push(Date.now());
-        return Promise.resolve(Response.json({ ok: true }, { status: 200 }));
-      };
 
       // Use a very low limit so we can observe the delay
       const transport = createTestTransport({
-        fetch: mockFetch as FetchFn,
+        fetch: createTimestampFetch(timestamps),
         requestsPerSecond: 3,
       });
 
@@ -564,6 +657,41 @@ describe("createTransport", () => {
       expect((fourth as number) - maxEarlyTimestamp).toBeGreaterThanOrEqual(
         200
       );
+    });
+
+    it("separate transport instances have independent rate limiters", async () => {
+      // Simulates Vercel fluid compute: two requests in the same process
+      // each create their own client/transport — they should NOT share throttle
+      const timestampsA: number[] = [];
+      const timestampsB: number[] = [];
+
+      // Both transports allow 2 req/s — if they shared a limiter,
+      // the 3rd call across both would be delayed
+      const transportA = createTestTransport({
+        fetch: createTimestampFetch(timestampsA),
+        requestsPerSecond: 2,
+      });
+      const transportB = createTestTransport({
+        fetch: createTimestampFetch(timestampsB),
+        requestsPerSecond: 2,
+      });
+
+      // Fire 2 requests through each transport concurrently
+      await Promise.all([
+        transportA.get("/a1"),
+        transportA.get("/a2"),
+        transportB.get("/b1"),
+        transportB.get("/b2"),
+      ]);
+
+      // All 4 should complete without significant delay because each
+      // transport has its own 2 req/s limiter (2+2 = 4, no conflict)
+      const allTimestamps = [...timestampsA, ...timestampsB];
+      const spread = Math.max(...allTimestamps) - Math.min(...allTimestamps);
+
+      // If they shared a limiter, the 3rd/4th calls would be delayed ~1s
+      // With independent limiters, all 4 should complete within ~100ms
+      expect(spread).toBeLessThan(500);
     });
   });
 });
