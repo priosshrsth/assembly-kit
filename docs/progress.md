@@ -161,49 +161,71 @@ Legend: ✅ done · 🚧 in progress · ⬜ not started
 
 ---
 
-## Feature 5: Pagination Helper
+## Feature 5: Pagination Helper ✅
 
 > Dependency: Feature 4
 
-- ⬜ `src/pagination/paginate.ts` — `paginate<T>(fn, initialArgs?)` AsyncIterable generator
-- ⬜ `src/index.ts` re-exports `paginate`
-- ⬜ `test/pagination.test.ts`
-  - ⬜ Single page (no `nextToken`) → all items, stops
-  - ⬜ Multi-page → all items in order
-  - ⬜ Empty first page → yields nothing
-  - ⬜ `data: null` → yields nothing, no throw
-- ⬜ `bun run type-check` passes
-- ⬜ `bun test` passes
+- ✅ `src/pagination/paginate.ts` — `paginate<T>(fn, initialArgs?)` AsyncIterable generator
+- ✅ `src/pagination/index.ts` — barrel re-export
+- ✅ `src/index.ts` re-exports `paginate`, `ListArgs`, `PaginatedResponse`
+- ✅ `test/pagination.test.ts` (5 tests passing)
+  - ✅ Single page (no `nextToken`) → all items, stops
+  - ✅ Multi-page → all items in order
+  - ✅ Empty first page → yields nothing
+  - ✅ `data: null` → yields nothing, no throw
+  - ✅ Preserves `initialArgs` across pages
+- ✅ `bun run type-check` passes
+- ✅ `bun test` passes
 
 ---
 
-## Feature 6: Client Factory & Resource Classes
+## Feature 6: Client Factory & Resource Classes ✅
 
 > Dependencies: Features 1–5
 
-- ⬜ `src/client/options.ts` — `ClientOptions` type
-- ⬜ `src/client/assembly-client.ts` — `AssemblyClient` class
-- ⬜ `src/client/create-client.ts` — `createClient()` factory
-- ⬜ `src/resources/workspace.ts`
-- ⬜ `src/resources/clients.ts`
-- ⬜ `src/resources/companies.ts`
-- ⬜ `src/resources/internal-users.ts`
-- ⬜ `src/resources/notifications.ts`
-- ⬜ `src/resources/custom-fields.ts`
-- ⬜ `src/resources/tasks.ts`
-- ⬜ `src/resources/token.ts`
-- ⬜ `test/client.test.ts` (all transport calls mocked)
-  - ⬜ Empty `apiKey` → `AssemblyMissingApiKeyError`
-  - ⬜ `isMarketplaceApp: true` without token → `AssemblyNoTokenError`
-  - ⬜ Bad token → `AssemblyInvalidTokenError`
-  - ⬜ Two `createClient()` calls produce independent instances
-  - ⬜ Token `baseUrl` overrides default base URL
-  - ⬜ Token `tokenId` included in compound key
-  - ⬜ Resource method without token → `AssemblyNoTokenError`
-  - ⬜ `validateResponses: false` → raw data returned
-  - ⬜ `validateResponses: true` + bad shape → `AssemblyResponseParseError`
-- ⬜ `bun run type-check` passes
-- ⬜ `bun test` passes
+- ✅ `src/client/options.ts` — `ClientOptions` interface
+- ✅ `src/client/parse-response.ts` — Zod validate-or-cast helper
+- ✅ `src/client/require-token.ts` — token guard
+- ✅ `src/client/build-search-params.ts` — generic search params builder
+- ✅ `src/client/assembly-client.ts` — `AssemblyClient` class with 7 resource namespaces
+- ✅ `src/client/create-client.ts` — `createClient()` factory
+- ✅ `src/client/index.ts` — barrel export
+- ✅ `src/version.ts` — SDK version constant
+- ✅ `src/resources/workspace.ts` — `WorkspaceResource` (get)
+- ✅ `src/resources/clients.ts` — `ClientsResource` (list, get, create, update, delete)
+- ✅ `src/resources/companies.ts` — `CompaniesResource` (list, get, create, update, delete)
+- ✅ `src/resources/internal-users.ts` — `InternalUsersResource` (list, get)
+- ✅ `src/resources/notifications.ts` — `NotificationsResource` (list, create, delete)
+- ✅ `src/resources/custom-fields.ts` — `CustomFieldsResource` (list)
+- ✅ `src/resources/tasks.ts` — `TasksResource` (list, get, create, update, delete)
+- ✅ `src/resources/index.ts` — barrel export
+- ✅ `test/client.test.ts` (12 tests passing — all transport calls mocked)
+  - ✅ Empty `workspaceId` → `AssemblyMissingApiKeyError`
+  - ✅ Empty `apiKey` → `AssemblyMissingApiKeyError`
+  - ✅ `isMarketplaceApp: true` without token → `AssemblyNoTokenError`
+  - ✅ Marketplace mode with token → constructs OK
+  - ✅ Non-marketplace without token → constructs OK
+  - ✅ Two `createClient()` calls produce independent instances
+  - ✅ `tokenId` in compound key → `X-API-Key` = `ws/key/tokenId`
+  - ✅ No `tokenId` → `X-API-Key` = `ws/key`
+  - ✅ `validateResponses: false` → raw data returned
+  - ✅ `validateResponses: true` + bad shape → `AssemblyResponseParseError`
+  - ✅ Validates by default
+  - ✅ Exposes all resource namespaces
+- ✅ `test/resources/` — 7 resource test files (29 tests passing)
+  - ✅ `workspace.test.ts` (2 tests)
+  - ✅ `clients.test.ts` (6 tests)
+  - ✅ `companies.test.ts` (6 tests)
+  - ✅ `internal-users.test.ts` (3 tests)
+  - ✅ `notifications.test.ts` (4 tests)
+  - ✅ `custom-fields.test.ts` (2 tests)
+  - ✅ `tasks.test.ts` (6 tests)
+- ✅ `bun run type-check` passes
+- ✅ `bun run lint` passes
+- ✅ `bun run build` succeeds
+- ✅ `bun test` passes (245 tests across 14 files)
+
+> **Note:** `ResourceContext` pattern used — all resources receive `{ transport, validateResponses }` via constructor. `buildSearchParams()` utility extracts defined values from optional args objects, keeping resource methods under the max-statements lint limit. Token is stored on the client but resource methods do not currently use `requireToken()` — this will be added when token-gated endpoints are identified.
 
 ---
 

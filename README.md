@@ -12,6 +12,85 @@ npm install assembly-kit
 
 ## Usage
 
+### Client
+
+Create an SDK client with `createClient()`. Each call produces an independent instance with its own HTTP transport and rate limiter (safe for serverless environments).
+
+```typescript
+import { createClient } from "assembly-kit";
+
+const client = createClient({
+  workspaceId: "ws-123",
+  apiKey: "your-api-key",
+});
+
+// Access resources via namespaces
+const workspace = await client.workspace.get();
+const companies = await client.companies.list();
+const task = await client.tasks.create({ title: "Follow up" });
+```
+
+#### Options
+
+| Option              | Type      | Default                        | Description                                           |
+| ------------------- | --------- | ------------------------------ | ----------------------------------------------------- |
+| `workspaceId`       | `string`  | —                              | Required. Used to build the compound API key.         |
+| `apiKey`            | `string`  | —                              | Required. Your Assembly API key.                      |
+| `token`             | `string`  | —                              | Opaque token. Required when `isMarketplaceApp: true`. |
+| `isMarketplaceApp`  | `boolean` | `false`                        | When true, token is required at construction time.    |
+| `tokenId`           | `string`  | —                              | Appended to the compound key if provided.             |
+| `retryCount`        | `number`  | `2`                            | Max retry attempts for retryable errors.              |
+| `requestsPerSecond` | `number`  | `20`                           | Rate limiter sliding window limit.                    |
+| `validateResponses` | `boolean` | `true`                         | Validate API responses through Zod schemas.           |
+| `baseUrl`           | `string`  | `https://app.assembly.com/api` | Base URL for all API requests.                        |
+
+#### Resource namespaces
+
+| Namespace       | Methods                                               |
+| --------------- | ----------------------------------------------------- |
+| `workspace`     | `get()`                                               |
+| `clients`       | `list()`, `get()`, `create()`, `update()`, `delete()` |
+| `companies`     | `list()`, `get()`, `create()`, `update()`, `delete()` |
+| `internalUsers` | `list()`, `get()`                                     |
+| `notifications` | `list()`, `create()`, `delete()`                      |
+| `customFields`  | `list(entityType)`                                    |
+| `tasks`         | `list()`, `get()`, `create()`, `update()`, `delete()` |
+
+#### Marketplace apps
+
+```typescript
+const client = createClient({
+  workspaceId: "ws-123",
+  apiKey: "your-api-key",
+  token: encryptedToken,
+  isMarketplaceApp: true,
+});
+```
+
+#### Disabling response validation
+
+```typescript
+const client = createClient({
+  workspaceId: "ws-123",
+  apiKey: "your-api-key",
+  validateResponses: false, // skip Zod parsing for performance
+});
+```
+
+### Pagination
+
+Use `paginate()` to iterate through all pages of a paginated resource:
+
+```typescript
+import { createClient, paginate } from "assembly-kit";
+
+const client = createClient({ workspaceId: "ws-123", apiKey: "key" });
+
+for await (const task of paginate(client.tasks.list)) {
+  console.log(task.title);
+}
+```
+
 ### Error classes
 
 All Assembly errors extend the base `AssemblyError` class, which carries a `statusCode` and optional `details` payload. Import them from the package root:
