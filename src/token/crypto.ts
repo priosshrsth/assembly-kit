@@ -12,19 +12,26 @@ import {
 export const deriveKey = (apiKey: string): string =>
   createHmac("sha256", apiKey).digest("hex").slice(0, 32);
 
-/** Strip PKCS7 padding from raw decrypted bytes. */
+/**
+ * Strip PKCS7 padding from raw decrypted bytes.
+ * Uses constant-time comparison to prevent timing side-channel attacks.
+ */
 const stripPkcs7 = (raw: Buffer): Buffer => {
   const padLen = raw.at(-1);
   if (padLen === undefined || padLen < 1 || padLen > 16) {
     throw new Error(`Invalid PKCS7 padding byte: ${padLen}`);
   }
 
+  // Always check every padding byte (no early exit) to avoid timing side-channels
+  let mismatches = 0;
   for (let i = raw.length - padLen; i < raw.length; i += 1) {
     if (raw[i] !== padLen) {
-      throw new Error(
-        `Invalid PKCS7 padding at byte ${i}: expected ${padLen}, got ${raw[i]}`
-      );
+      mismatches += 1;
     }
+  }
+
+  if (mismatches > 0) {
+    throw new Error("Invalid PKCS7 padding");
   }
 
   return raw.subarray(0, raw.length - padLen);
@@ -101,8 +108,13 @@ export const decryptTokenString = ({
 
   try {
     return decryptNative(parts);
-  } catch {
-    return decryptManual(parts);
+  } catch (nativeError: unknown) {
+    try {
+      return decryptManual(parts);
+    } catch {
+      // Both paths failed — throw the native error as it's more informative
+      throw nativeError;
+    }
   }
 };
 

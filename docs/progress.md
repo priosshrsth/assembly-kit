@@ -13,7 +13,7 @@ Legend: ✅ done · 🚧 in progress · ⬜ not started
 - ✅ `src` path alias (`@/*`) configured in tsconfig.json
 - ✅ `bunup.config.ts` — 4 entry points (index, schemas, app-bridge, bridge-ui)
 - ✅ Runtime deps: `zod` installed
-- ✅ Runtime deps: `ky`, `p-throttle` (installed for Feature 4)
+- ⬜ Runtime deps: `ky`, `p-throttle` (needed for Feature 4)
 - ✅ Entry point stubs: `src/schemas/index.ts`, `src/app-bridge/index.ts`, `src/bridge-ui/index.ts`
 - ✅ Test fixtures: `test/fixtures/tokens.ts` (encrypted token constants for token tests)
 
@@ -123,13 +123,16 @@ Legend: ✅ done · 🚧 in progress · ⬜ not started
 > Dependencies: Feature 1 · Install: `ky`, `p-throttle`
 
 - ✅ `bun add ky p-throttle` (ky@1.14.3, p-throttle@8.1.0)
-- ✅ `src/transport/http.ts` — single-file transport: `createTransport(options)`, rate limiter, error mapper
+- ✅ `src/transport/rate-limiter.ts` — `createRateLimiter(requestsPerSecond)` with p-throttle acquireSlot pattern
+- ✅ `src/transport/error-mapper.ts` — `mapHttpError(error)` → typed `AssemblyError`, `parseRetryAfter(header)`
+- ✅ `src/transport/http.ts` — `createTransport(options)` with injectable `fetch`
   - ✅ `X-API-Key` header (not `Authorization: Bearer`)
   - ✅ `X-Assembly-SDK-Version` header
-  - ✅ Retry via ky defaults (exponential backoff, respects `Retry-After`), configurable `retryCount`
+  - ✅ Retry on 429 / 5xx only, exponential backoff, respects `Retry-After` via ky's afterStatusCodes
   - ✅ Rate limiting via `p-throttle` in `beforeRequest` hook (fires on retries too)
-  - ✅ Default base URL (`https://app.assembly.com/api/v1`) with optional override
+  - ✅ Configurable `retryCount`, `retryMinTimeout`, `retryMaxTimeout`, `requestsPerSecond`
   - ✅ Strips leading `/` from paths (ky prefixUrl requirement)
+- ✅ `src/transport/index.ts` — internal barrel (NOT exported from `src/index.ts`)
 - ✅ `test/transport.test.ts` (39 tests, all via mock `fetch` — no real HTTP calls)
   - ✅ GET/POST/PATCH/DELETE 200 → resolves with parsed JSON
   - ✅ 400 → `AssemblyValidationError`, 401 → `AssemblyUnauthorizedError`
@@ -154,7 +157,7 @@ Legend: ✅ done · 🚧 in progress · ⬜ not started
 - ✅ `bun run lint` passes
 - ✅ `bun test` passes (193 tests across 5 files)
 
-> **Note:** Transport is a single file (`src/transport/http.ts`) — no barrel, no separate rate-limiter/error-mapper files. Consumed by the client factory (Feature 6), not exported from the main entry point. Uses ky's built-in retry with only `limit` and `methods` overridden. Error mapping uses try/catch around ky requests, converting `HTTPError` to typed `AssemblyError` subclasses and all other errors to `AssemblyConnectionError`.
+> **Note:** Transport is internal only — consumed by the client factory (Feature 6), not exported from the main entry point. Error mapping uses try/catch around ky requests, converting `HTTPError` to typed `AssemblyError` subclasses and all other errors to `AssemblyConnectionError`. The `withErrorMapping` helper and `stripLeadingSlash` are module-level arrow functions.
 
 ---
 
