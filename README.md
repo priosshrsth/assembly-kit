@@ -32,17 +32,17 @@ const task = await client.tasks.create({ title: "Follow up" });
 
 #### Options
 
-| Option              | Type      | Default                        | Description                                           |
-| ------------------- | --------- | ------------------------------ | ----------------------------------------------------- |
-| `workspaceId`       | `string`  | —                              | Required. Used to build the compound API key.         |
-| `apiKey`            | `string`  | —                              | Required. Your Assembly API key.                      |
-| `token`             | `string`  | —                              | Opaque token. Required when `isMarketplaceApp: true`. |
-| `isMarketplaceApp`  | `boolean` | `false`                        | When true, token is required at construction time.    |
-| `tokenId`           | `string`  | —                              | Appended to the compound key if provided.             |
-| `retryCount`        | `number`  | `2`                            | Max retry attempts for retryable errors.              |
-| `requestsPerSecond` | `number`  | `20`                           | Rate limiter sliding window limit.                    |
-| `validateResponses` | `boolean` | `true`                         | Validate API responses through Zod schemas.           |
-| `baseUrl`           | `string`  | `https://api.assembly.com` | Base URL for all API requests.                        |
+| Option              | Type      | Default                    | Description                                                                                                               |
+| ------------------- | --------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `workspaceId`       | `string`  | —                          | Required. Used to build the compound API key.                                                                             |
+| `apiKey`            | `string`  | —                          | Required. Your Assembly API key.                                                                                          |
+| `token`             | `string`  | —                          | Encrypted token from Assembly. Required when `isMarketplaceApp` is `true`, optional otherwise.                            |
+| `isMarketplaceApp`  | `boolean` | `false`                    | When true, token is required at construction time.                                                                        |
+| `tokenId`           | `string`  | —                          | Extracted from the parsed token. Appended to the compound key automatically. Skipped when `SKIP_TOKEN_ID` env var is set. |
+| `retryCount`        | `number`  | `2`                        | Max retry attempts for retryable errors.                                                                                  |
+| `requestsPerSecond` | `number`  | `20`                       | Rate limiter sliding window limit.                                                                                        |
+| `validateResponses` | `boolean` | `true`                     | Validate API responses through Zod schemas.                                                                               |
+| `baseUrl`           | `string`  | `https://api.assembly.com` | Base URL for all API requests.                                                                                            |
 
 #### Resource namespaces
 
