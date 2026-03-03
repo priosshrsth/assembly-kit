@@ -56,3 +56,5 @@ jobs:
 
       - name: Publish packages to npm
         run: bun pm pack && npm publish ./*.tgz --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
