@@ -1,7 +1,7 @@
 {
   "name": "@priosshrsth/assembly-kit",
   "version": "0.1.0",
-  "description": "Alterntive sdk for Assembly platform",
+  "description": "Alternative SDK for the Assembly platform",
   "homepage": "https://github.com/priosshrsth/assembly-kit#readme",
   "bugs": {
     "url": "https://github.com/priosshrsth/assembly-kit/issues"
