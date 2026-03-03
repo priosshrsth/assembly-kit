@@ -5,9 +5,9 @@ TypeScript SDK for the [Assembly](https://assembly.ac) platform. ESM-only, targe
 ## Installation
 
 ```bash
-bun add assembly-kit
+bun add @anitshrsth/assembly-kit
 # or
-npm install assembly-kit
+npm install @anitshrsth/assembly-kit
 ```
 
 ## Usage
@@ -17,7 +17,7 @@ npm install assembly-kit
 Create an SDK client with `createAssemblyKit()`. Each call produces an independent instance with its own HTTP transport and rate limiter (safe for serverless environments).
 
 ```typescript
-import { createAssemblyKit } from "assembly-kit";
+import { createAssemblyKit } from "@anitshrsth/assembly-kit";
 
 const client = createAssemblyKit({
   workspaceId: "ws-123",
@@ -42,7 +42,7 @@ const task = await client.tasks.create({ title: "Follow up" });
 | `retryCount`        | `number`  | `2`                            | Max retry attempts for retryable errors.              |
 | `requestsPerSecond` | `number`  | `20`                           | Rate limiter sliding window limit.                    |
 | `validateResponses` | `boolean` | `true`                         | Validate API responses through Zod schemas.           |
-| `baseUrl`           | `string`  | `https://app.assembly.com/api` | Base URL for all API requests.                        |
+| `baseUrl`           | `string`  | `https://api.assembly.com` | Base URL for all API requests.                        |
 
 #### Resource namespaces
 
@@ -102,7 +102,7 @@ const client = createAssemblyKit({
 Use `paginate()` to iterate through all pages of a paginated resource:
 
 ```typescript
-import { createAssemblyKit, paginate } from "assembly-kit";
+import { createAssemblyKit, paginate } from "@anitshrsth/assembly-kit";
 
 const client = createAssemblyKit({ workspaceId: "ws-123", apiKey: "key" });
 
@@ -129,7 +129,7 @@ import {
   AssemblyServerError,
   AssemblyConnectionError,
   AssemblyResponseParseError,
-} from "assembly-kit";
+} from "@anitshrsth/assembly-kit";
 ```
 
 #### Catching errors
@@ -139,7 +139,7 @@ import {
   AssemblyRateLimitError,
   AssemblyUnauthorizedError,
   AssemblyError,
-} from "assembly-kit";
+} from "@anitshrsth/assembly-kit";
 
 try {
   await client.workspaces.get(id);
@@ -187,7 +187,7 @@ import {
   CustomFieldSchema,
   TokenPayloadSchema,
   HexColorSchema,
-} from "assembly-kit/schemas";
+} from "@anitshrsth/assembly-kit/schemas";
 
 // TypeScript types inferred from schemas
 import type {
@@ -197,7 +197,7 @@ import type {
   TaskStatus,
   Workspace,
   InternalUser,
-} from "assembly-kit/schemas";
+} from "@anitshrsth/assembly-kit/schemas";
 ```
 
 #### Response schemas
@@ -209,13 +209,13 @@ import {
   ClientsResponseSchema,
   CompaniesResponseSchema,
   TasksResponseSchema,
-} from "assembly-kit/schemas";
+} from "@anitshrsth/assembly-kit/schemas";
 
 import type {
   ClientsResponse,
   CompaniesResponse,
   TasksResponse,
-} from "assembly-kit/schemas";
+} from "@anitshrsth/assembly-kit/schemas";
 ```
 
 #### Request schemas
@@ -228,18 +228,18 @@ import {
   ClientUpdateRequestSchema,
   CompanyCreateRequestSchema,
   TaskCreateRequestSchema,
-} from "assembly-kit/schemas";
+} from "@anitshrsth/assembly-kit/schemas";
 
 import type {
   ClientCreateRequest,
   ClientUpdateRequest,
-} from "assembly-kit/schemas";
+} from "@anitshrsth/assembly-kit/schemas";
 ```
 
 #### Validating data
 
 ```typescript
-import { ClientSchema } from "assembly-kit/schemas";
+import { ClientSchema } from "@anitshrsth/assembly-kit/schemas";
 
 const result = ClientSchema.safeParse(unknownData);
 
@@ -259,7 +259,7 @@ Parse and validate encrypted Assembly tokens, build compound API keys, and narro
 Decrypt and validate a token using your API key. Returns the typed `TokenPayload`:
 
 ```typescript
-import { parseToken } from "assembly-kit";
+import { parseToken } from "@anitshrsth/assembly-kit";
 
 const payload = parseToken({ token: encryptedTokenHex, apiKey });
 // payload.workspaceId — always present
@@ -277,7 +277,7 @@ Throws `AssemblyNoTokenError` if the token is missing, or `AssemblyInvalidTokenE
 Encrypt a `TokenPayload` into a hex-encoded token string (the inverse of `parseToken`):
 
 ```typescript
-import { createToken } from "assembly-kit";
+import { createToken } from "@anitshrsth/assembly-kit";
 
 const token = createToken({
   payload: {
@@ -297,7 +297,7 @@ The payload is validated against `TokenPayloadSchema` before encryption. Throws 
 Build the compound API key for the `X-API-Key` header:
 
 ```typescript
-import { buildCompoundKey } from "assembly-kit";
+import { buildCompoundKey } from "@anitshrsth/assembly-kit";
 
 const key = buildCompoundKey({ apiKey, payload });
 // With tokenId:    "workspaceId/apiKey/tokenId"
@@ -314,11 +314,11 @@ import {
   isInternalUserToken,
   ensureIsClient,
   ensureIsInternalUser,
-} from "assembly-kit";
+} from "@anitshrsth/assembly-kit";
 import type {
   ClientTokenPayload,
   InternalUserTokenPayload,
-} from "assembly-kit";
+} from "@anitshrsth/assembly-kit";
 
 // Type predicates (return boolean)
 if (isClientToken(payload)) {
@@ -344,8 +344,8 @@ The app-bridge entry point provides framework-agnostic utilities for communicati
 Sends a typed postMessage payload to the Assembly dashboard parent frame:
 
 ```typescript
-import { sendToParent, Icons } from "assembly-kit/app-bridge";
-import type { PrimaryCtaPayload } from "assembly-kit/app-bridge";
+import { sendToParent, Icons } from "@anitshrsth/assembly-kit/app-bridge";
+import type { PrimaryCtaPayload } from "@anitshrsth/assembly-kit/app-bridge";
 
 // Register a primary CTA button in the dashboard header
 const payload: PrimaryCtaPayload = {
@@ -377,7 +377,7 @@ import type {
   ActionItem, // { label, onClick, icon?, color? }
   CtaConfig, // { label?, icon?, onClick?(), color? }
   BridgeOpts, // { portalUrl?, show? }
-} from "assembly-kit/app-bridge";
+} from "@anitshrsth/assembly-kit/app-bridge";
 ```
 
 #### Clearing a slot
@@ -400,8 +400,8 @@ Requires `react >= 18` as a peer dependency.
 Registers a primary CTA button in the dashboard header:
 
 ```tsx
-import { usePrimaryCta } from "assembly-kit/bridge-ui";
-import { Icons } from "assembly-kit/app-bridge";
+import { usePrimaryCta } from "@anitshrsth/assembly-kit/bridge-ui";
+import { Icons } from "@anitshrsth/assembly-kit/app-bridge";
 
 function MyApp() {
   usePrimaryCta({
@@ -421,8 +421,8 @@ function MyApp() {
 Registers a secondary CTA button. Same API as `usePrimaryCta`:
 
 ```tsx
-import { useSecondaryCta } from "assembly-kit/bridge-ui";
-import { Icons } from "assembly-kit/app-bridge";
+import { useSecondaryCta } from "@anitshrsth/assembly-kit/bridge-ui";
+import { Icons } from "@anitshrsth/assembly-kit/app-bridge";
 
 function MyApp() {
   useSecondaryCta({
@@ -442,8 +442,8 @@ function MyApp() {
 Registers a dropdown actions menu in the dashboard header:
 
 ```tsx
-import { useActionsMenu } from "assembly-kit/bridge-ui";
-import { Icons } from "assembly-kit/app-bridge";
+import { useActionsMenu } from "@anitshrsth/assembly-kit/bridge-ui";
+import { Icons } from "@anitshrsth/assembly-kit/app-bridge";
 
 function MyApp() {
   useActionsMenu([
@@ -485,16 +485,16 @@ usePrimaryCta(
 
 A drop-in wrapper around the original `@assembly-js/node-sdk` that adds automatic retry with exponential backoff on 429 (rate limit) and 5xx (server) errors. Uses a `Proxy` to wrap all 76+ SDK methods automatically.
 
-Requires `@assembly-js/node-sdk` as a peer dependency — install it alongside `assembly-kit`:
+Requires `@assembly-js/node-sdk` as a peer dependency — install it alongside `@anitshrsth/assembly-kit`:
 
 ```bash
-bun add assembly-kit @assembly-js/node-sdk
+bun add @anitshrsth/assembly-kit @assembly-js/node-sdk
 ```
 
 #### Basic usage
 
 ```typescript
-import { createAssemblyClient } from "assembly-kit/assembly-client";
+import { createAssemblyClient } from "@anitshrsth/assembly-kit/assembly-client";
 
 const client = createAssemblyClient({
   apiKey: "your-api-key",
