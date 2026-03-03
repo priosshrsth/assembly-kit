@@ -252,34 +252,49 @@ if (result.success) {
 
 ### Token Utilities
 
-Parse and validate encrypted Assembly tokens, build compound API keys, and narrow token payloads to client or internal user types.
+Decrypt, validate, and inspect encrypted Assembly tokens using the `AssemblyToken` class.
 
-#### `parseToken`
+#### `AssemblyToken`
 
-Decrypt and validate a token using your API key. Returns the typed `TokenPayload`:
+Decrypt and validate a token using your API key. The constructor decrypts the token and exposes the payload along with convenience getters and guard methods:
 
 ```typescript
-import { parseToken } from "@anitshrsth/assembly-kit";
+import { AssemblyToken } from "@anitshrsth/assembly-kit";
 
-const payload = parseToken({ token: encryptedTokenHex, apiKey });
-// payload.workspaceId — always present
-// payload.clientId    — present for client (portal) users
-// payload.companyId   — present for client users
-// payload.internalUserId — present for internal (team member) users
-// payload.tokenId     — present in some marketplace tokens
-// payload.baseUrl     — overrides the API base URL if set
+const token = new AssemblyToken({ token: encryptedTokenHex, apiKey });
+
+// Convenience getters
+token.workspaceId; // string — always present
+token.clientId; // string | undefined — present for client (portal) users
+token.companyId; // string | undefined — present for client users
+token.internalUserId; // string | undefined — present for internal (team member) users
+token.tokenId; // string | undefined — present in some marketplace tokens
+token.baseUrl; // string | undefined — overrides the API base URL if set
+
+// Identity checks
+token.isClientUser; // true if clientId + companyId present
+token.isInternalUser; // true if internalUserId present
+
+// Throwing guards — return narrowed payload type or throw AssemblyUnauthorizedError
+const clientPayload = token.ensureIsClient(); // ClientTokenPayload
+const internalPayload = token.ensureIsInternalUser(); // InternalUserTokenPayload
+
+// Build compound API key for the X-API-Key header
+const key = token.buildCompoundKey({ apiKey });
+// With tokenId:    "workspaceId/apiKey/tokenId"
+// Without tokenId: "workspaceId/apiKey"
 ```
 
 Throws `AssemblyNoTokenError` if the token is missing, or `AssemblyInvalidTokenError` if decryption/validation fails.
 
 #### `createToken`
 
-Encrypt a `TokenPayload` into a hex-encoded token string (the inverse of `parseToken`):
+Encrypt a `TokenPayload` into a hex-encoded token string (the inverse of `new AssemblyToken()`):
 
 ```typescript
 import { createToken } from "@anitshrsth/assembly-kit";
 
-const token = createToken({
+const encrypted = createToken({
   payload: {
     workspaceId: "ws-123",
     clientId: "cl-456",
@@ -287,53 +302,108 @@ const token = createToken({
   },
   apiKey,
 });
-// token is a hex-encoded AES-128-CBC encrypted string
+// encrypted is a hex-encoded AES-128-CBC encrypted string
 ```
 
 The payload is validated against `TokenPayloadSchema` before encryption. Throws `AssemblyInvalidTokenError` if validation fails. Each call produces a different ciphertext (random IV).
 
-#### `buildCompoundKey`
+### React Server Components (`assembly-kit/react`)
 
-Build the compound API key for the `X-API-Key` header:
+Pre-built cached singletons for React Server Components. Each helper wraps its core counterpart with React's [`cache`](https://react.dev/reference/react/cache), deduplicating instances within a single server render. Arguments are primitives so React compares by value.
 
-```typescript
-import { buildCompoundKey } from "@anitshrsth/assembly-kit";
+Requires `react >= 18` as a peer dependency.
 
-const key = buildCompoundKey({ apiKey, payload });
-// With tokenId:    "workspaceId/apiKey/tokenId"
-// Without tokenId: "workspaceId/apiKey"
+```bash
+bun add @anitshrsth/assembly-kit react
 ```
 
-#### Type guards
+#### `getAssemblyToken`
 
-Narrow a `TokenPayload` to a specific user type:
+Cached factory for `AssemblyToken`. Decrypts and validates the token once per render:
 
-```typescript
+```ts
+import { getAssemblyToken } from "@anitshrsth/assembly-kit/react";
+
+const token = getAssemblyToken(encryptedHex, apiKey);
+token.workspaceId; // string
+token.isClientUser; // boolean
+```
+
+#### `getAssemblyKit`
+
+Cached factory for `AssemblyKitClient`:
+
+```ts
+import { getAssemblyKit } from "@anitshrsth/assembly-kit/react";
+
+const client = getAssemblyKit(workspaceId, apiKey, token, tokenId);
+const workspace = await client.workspace.get();
+```
+
+#### `getAssemblyClient`
+
+Cached factory for the legacy `AssemblyClient`. Requires `@assembly-js/node-sdk` as a peer dependency — tree-shaken if unused:
+
+```ts
+import { getAssemblyClient } from "@anitshrsth/assembly-kit/react";
+
+const client = getAssemblyClient(apiKey, token);
+const workspace = await client.retrieveWorkspace();
+```
+
+#### Full example
+
+```tsx
+// app/page.tsx
 import {
-  isClientToken,
-  isInternalUserToken,
-  ensureIsClient,
-  ensureIsInternalUser,
-} from "@anitshrsth/assembly-kit";
-import type {
-  ClientTokenPayload,
-  InternalUserTokenPayload,
-} from "@anitshrsth/assembly-kit";
+  getAssemblyKit,
+  getAssemblyToken,
+} from "@anitshrsth/assembly-kit/react";
 
-// Type predicates (return boolean)
-if (isClientToken(payload)) {
-  payload.clientId; // string (narrowed)
-  payload.companyId; // string (narrowed)
+export default async function Page() {
+  const apiKey = process.env.ASSEMBLY_API_KEY!;
+  const workspaceId = process.env.ASSEMBLY_WORKSPACE_ID!;
+  const rawToken = process.env.ASSEMBLY_TOKEN; // optional for marketplace apps
+
+  // Both calls are deduplicated — only one instance is created per render
+  const token = rawToken ? getAssemblyToken(rawToken, apiKey) : undefined;
+  const client = getAssemblyKit(workspaceId, apiKey, rawToken, token?.tokenId);
+
+  const workspace = await client.workspace.get();
+  // ...
 }
-
-if (isInternalUserToken(payload)) {
-  payload.internalUserId; // string (narrowed)
-}
-
-// Throwing guards (return narrowed type or throw AssemblyUnauthorizedError)
-const client = ensureIsClient(payload);
-const internal = ensureIsInternalUser(payload);
 ```
+
+#### Non-React caching (plain Node.js / Bun)
+
+For non-React environments, use a `Map` keyed by token (when present) or workspaceId for process-level caching:
+
+```ts
+import {
+  AssemblyToken,
+  createAssemblyKit,
+  type AssemblyKitClient,
+} from "@anitshrsth/assembly-kit";
+
+const cache = new Map<string, AssemblyKitClient>();
+
+export function getAssemblyKit(opts: {
+  workspaceId: string;
+  apiKey: string;
+  token?: string;
+  tokenId?: string;
+}): AssemblyKitClient {
+  const key = opts.token ?? opts.workspaceId;
+  let cached = cache.get(key);
+  if (!cached) {
+    cached = createAssemblyKit(opts);
+    cache.set(key, cached);
+  }
+  return cached;
+}
+```
+
+> **Note:** For long-lived processes with many different tokens, consider adding cache eviction (TTL or LRU) to avoid unbounded memory growth.
 
 ### App Bridge
 

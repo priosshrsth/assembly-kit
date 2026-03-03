@@ -34,7 +34,7 @@ Always keep docs in sync with the code. Do not defer documentation to a later st
 
 ## Architecture
 
-`assembly-kit` is a TypeScript-first SDK for the Assembly platform. It is an **ESM-only single package** with 5 entry points, targeting Node.js 18+, Node.js 24+, and Bun.
+`assembly-kit` is a TypeScript-first SDK for the Assembly platform. It is an **ESM-only single package** with 6 entry points, targeting Node.js 18+, Node.js 24+, and Bun.
 
 ### Entry Points
 
@@ -45,6 +45,7 @@ Always keep docs in sync with the code. Do not defer documentation to a later st
 | `assembly-kit/app-bridge`      | Framework-agnostic `sendToParent()` postMessage utilities                              |
 | `assembly-kit/bridge-ui`       | React hooks wrapping app-bridge (`usePrimaryCta`, `useSecondaryCta`, `useActionsMenu`) |
 | `assembly-kit/assembly-client` | `createAssemblyClient()` — retry wrapper around `@assembly-js/node-sdk`                |
+| `assembly-kit/react`           | React Server Component cached singletons (`getAssemblyKit`, `getAssemblyToken`, etc.)  |
 
 ### Source Layer Dependency Order
 
@@ -57,6 +58,7 @@ src/pagination/        ← paginate() AsyncIterable cursor helper
 src/modules/           ← 27 co-located modules, each with schema.ts + resource.ts + index.ts
 src/assembly-kit/      ← createAssemblyKit() factory + AssemblyKitClient class (workspaceId is required, token is opaque)
 src/assembly-client/   ← createAssemblyClient() wrapper around @assembly-js/node-sdk
+src/react/             ← React `cache` wrappers for token, assembly-kit, assembly-client
 src/app-bridge/        ← parallel track, no dependency on layers above
 src/bridge-ui/         ← depends on app-bridge only
 ```

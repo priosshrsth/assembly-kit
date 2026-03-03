@@ -86,35 +86,30 @@ Legend: ✅ done · 🚧 in progress · ⬜ not started
   - ✅ `deriveKey(apiKey)` — HMAC-SHA256 → hex → slice(0,32)
   - ✅ `decryptTokenString(apiKey, encryptedToken)` — AES-128-CBC, dual strategy (native → manual PKCS7 fallback)
   - ✅ `encryptTokenString(apiKey, plaintext)` — AES-128-CBC encryption with random IV
+- ✅ `src/token/assembly-token.ts` — `AssemblyToken` class (replaces `parseToken`, guards, `buildCompoundKey`)
+  - ✅ Constructor decrypts + validates token, throws `AssemblyNoTokenError` / `AssemblyInvalidTokenError`
+  - ✅ Getters: `workspaceId`, `tokenId`, `baseUrl`, `clientId`, `companyId`, `internalUserId`
+  - ✅ Identity checks: `isClientUser`, `isInternalUser`
+  - ✅ Throwing guards: `ensureIsClient()`, `ensureIsInternalUser()`
+  - ✅ `buildCompoundKey({ apiKey })` — compound key builder
 - ✅ `src/token/parse.ts`
-  - ✅ `parseToken(token, apiKey): TokenPayload`
-  - ✅ `createToken(payload, apiKey): string` — encrypt a payload into a token (inverse of parseToken)
-  - ✅ `buildCompoundKey(apiKey, payload)` — compound key builder
-- ✅ `src/token/guards.ts`
-  - ✅ `ensureIsClient(payload)`
-  - ✅ `ensureIsInternalUser(payload)`
-  - ✅ `isClientToken(payload)` — type predicate
-  - ✅ `isInternalUserToken(payload)` — type predicate
-- ✅ `src/token/index.ts` — barrel export (public API only, crypto internals not exposed)
+  - ✅ `decrypt()`, `validatePayload()` — exported helpers for `AssemblyToken` constructor
+  - ✅ `createToken(payload, apiKey): string` — standalone encrypt (inverse of `new AssemblyToken()`)
+- ✅ `src/token/index.ts` — barrel export: `AssemblyToken`, `ClientTokenPayload`, `InternalUserTokenPayload`, `createToken`
 - ✅ `src/index.ts` re-exports all token utilities
 - ✅ `test/fixtures/tokens.ts` — pre-generated encrypted token constants with encrypt helper
-- ✅ `test/token.test.ts` (22 tests passing)
-  - ✅ Null/empty/non-string token → `AssemblyNoTokenError`
-  - ✅ Invalid hex → `AssemblyInvalidTokenError`
-  - ✅ Wrong API key → `AssemblyInvalidTokenError`
-  - ✅ Error cause chaining preserved
-  - ✅ Valid client token → `TokenPayload` with `clientId` + `companyId`
-  - ✅ Valid internal user token → `TokenPayload` with `internalUserId`
-  - ✅ Token with `tokenId` → payload includes `tokenId`
-  - ✅ Token with `baseUrl` → payload includes `baseUrl`
-  - ✅ Block-aligned plaintext (Node 24 PKCS7 edge case) decrypts correctly
-  - ✅ `buildCompoundKey` with/without `tokenId`
-  - ✅ `isClientToken` / `isInternalUserToken` type predicates
-  - ✅ `ensureIsClient` / `ensureIsInternalUser` guard functions
+- ✅ `test/token.test.ts` — tests against `AssemblyToken` class API
+  - ✅ Constructor errors: undefined/null/empty → `AssemblyNoTokenError`; non-string/bad-hex/wrong-key → `AssemblyInvalidTokenError`; cause preserved
+  - ✅ Decryption: client token, internal user token, tokenId token, baseUrl token, block-aligned token
+  - ✅ Getters: `.workspaceId`, `.tokenId`, `.clientId`, `.companyId`, `.internalUserId`, `.baseUrl`
+  - ✅ Identity: `.isClientUser` / `.isInternalUser` for client vs internal tokens
+  - ✅ Guards: `.ensureIsClient()` returns narrowed type; throws for wrong type. Same for `.ensureIsInternalUser()`
+  - ✅ `buildCompoundKey`: with/without tokenId
+  - ✅ `createToken`: round-trip, random IV, invalid payload (standalone, unchanged)
 - ✅ `bun run type-check` passes
 - ✅ `bun run lint` passes
 - ✅ `bun run build` succeeds
-- ✅ `bun test` passes (154 tests across 4 files)
+- ✅ `bun test` passes
 
 ---
 
@@ -319,6 +314,24 @@ Legend: ✅ done · 🚧 in progress · ⬜ not started
 - ✅ `bun run lint` passes
 - ✅ `bun run build` succeeds (9 entry points)
 - ✅ `bun test` passes (306 tests across 36 files)
+
+---
+
+## React Server Component Helpers (`assembly-kit/react`) ✅
+
+> Dependency: Features 3, 6, 11 · Peer dep: `react >= 18`
+
+- ✅ `src/react/get-assembly-token.ts` — `getAssemblyToken(token, apiKey)` → cached `AssemblyToken`
+- ✅ `src/react/get-assembly-kit.ts` — `getAssemblyKit(workspaceId, apiKey, token?, tokenId?)` → cached `AssemblyKitClient`
+- ✅ `src/react/get-assembly-client.ts` — `getAssemblyClient(apiKey, token?)` → cached `AssemblyClient`
+- ✅ `src/react/index.ts` — barrel export (no `"use client"` — server-side helpers)
+- ✅ `bunup.config.ts` — 6th entry point added
+- ✅ `package.json` — `./react` export map entry
+- ✅ `README.md` — replaced caching recipes section with `assembly-kit/react` docs
+- ✅ `bun run type-check` passes
+- ✅ `bun run lint` passes
+- ✅ `bun run build` succeeds (6 entry points, 12 files)
+- ✅ `bun test` passes (310 tests)
 
 ---
 

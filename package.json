@@ -49,6 +49,12 @@
         "default": "./dist/assembly-client/index.js"
       }
     },
+    "./react": {
+      "import": {
+        "types": "./dist/react/index.d.ts",
+        "default": "./dist/react/index.js"
+      }
+    },
     "./package.json": "./package.json"
   },
   "scripts": {

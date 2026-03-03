@@ -8,6 +8,7 @@ const bunupConfig = defineConfig({
     "src/app-bridge/index.ts",
     "src/bridge-ui/index.ts",
     "src/assembly-client/index.ts",
+    "src/react/index.ts",
   ],
   format: "esm",
   minify: true,
