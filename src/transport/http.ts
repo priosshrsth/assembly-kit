@@ -38,6 +38,7 @@ export interface RequestOpts {
 export interface Transport {
   get<T>(path: string, opts?: RequestOpts): Promise<T>;
   post<T>(path: string, body?: unknown, opts?: RequestOpts): Promise<T>;
+  put<T>(path: string, body?: unknown, opts?: RequestOpts): Promise<T>;
   patch<T>(path: string, body?: unknown, opts?: RequestOpts): Promise<T>;
   delete<T>(path: string, opts?: RequestOpts): Promise<T>;
 }
@@ -216,6 +217,16 @@ export const createTransport = (options: TransportOptions): Transport => {
       withErrorMapping(
         api
           .post(stripLeadingSlash(path), {
+            json: body,
+            searchParams: opts?.searchParams,
+          })
+          .json<T>()
+      ),
+
+    put: <T>(path: string, body?: unknown, opts?: RequestOpts): Promise<T> =>
+      withErrorMapping(
+        api
+          .put(stripLeadingSlash(path), {
             json: body,
             searchParams: opts?.searchParams,
           })

@@ -40,21 +40,22 @@ Always keep docs in sync with the code. Do not defer documentation to a later st
 
 | Export                    | Purpose                                                                                |
 | ------------------------- | -------------------------------------------------------------------------------------- |
-| `assembly-kit`            | `createClient()`, error classes, token utilities, `paginate()`                         |
-| `assembly-kit/schemas`    | All Zod schemas and inferred types (no client dependency)                              |
+| `assembly-kit`            | `createAssemblyKit()`, error classes, token utilities, `paginate()`, all Zod schemas   |
 | `assembly-kit/app-bridge` | Framework-agnostic `sendToParent()` postMessage utilities                              |
 | `assembly-kit/bridge-ui`  | React hooks wrapping app-bridge (`usePrimaryCta`, `useSecondaryCta`, `useActionsMenu`) |
+| `assembly-kit/legacy`     | `createAssemblyClient()` — retry wrapper around `@assembly-js/node-sdk`                |
 
 ### Source Layer Dependency Order
 
 ```
-src/errors/          ← base AssemblyError class + createAssemblyError factory + all subclasses
-src/schemas/         ← Zod schemas: base/ → responses/ → requests/
-src/token/           ← optional standalone utilities: parseToken(), createToken(), guards, crypto (NOT used by createClient)
+src/errors/          ← base AssemblyError class + all subclasses
+src/schemas/shared/  ← shared cross-module schemas: hex-color, membership-type, token
+src/token/           ← optional standalone utilities: parseToken(), createToken(), guards, crypto (NOT used by createAssemblyKit)
 src/transport/       ← ky HTTP client + p-throttle rate limiter + error mapper
 src/pagination/      ← paginate() AsyncIterable cursor helper
-src/client/          ← createClient() factory + AssemblyClient class (workspaceId is required, token is opaque)
-src/resources/       ← workspace, clients, companies, internalUsers, notifications, customFields, tasks
+src/modules/         ← 27 co-located modules, each with schema.ts + resource.ts + index.ts
+src/client/          ← createAssemblyKit() factory + AssemblyKitClient class (workspaceId is required, token is opaque)
+src/legacy/          ← createAssemblyClient() wrapper around @assembly-js/node-sdk
 src/app-bridge/      ← parallel track, no dependency on layers above
 src/bridge-ui/       ← depends on app-bridge only
 ```
@@ -106,13 +107,13 @@ This applies to every `export const`, `export function`, `export class`, and `ex
 
 **Rate limiting:** `p-throttle` (sliding window, 20 req/s default). Applied in ky's `beforeRequest` hook. No `bottleneck` — avoids fixed `minTime` penalty at low request rates.
 
-**No module-level singletons.** Every `createClient()` creates a fresh transport and rate limiter. This is critical for serverless safety (Vercel, Cloudflare Workers).
+**No module-level singletons.** Every `createAssemblyKit()` creates a fresh transport and rate limiter. This is critical for serverless safety (Vercel, Cloudflare Workers).
 
-**`workspaceId` is required.** Every `createClient()` call requires an explicit `workspaceId` parameter. The compound key is always `${workspaceId}/${apiKey}` (or `${workspaceId}/${apiKey}/${tokenId}`). Raw apiKey alone is never sent.
+**`workspaceId` is required.** Every `createAssemblyKit()` call requires an explicit `workspaceId` parameter. The compound key is always `${workspaceId}/${apiKey}` (or `${workspaceId}/${apiKey}/${tokenId}`). Raw apiKey alone is never sent.
 
 **Token is opaque.** The SDK does **not** decrypt or parse the token. It is received as-is (required for marketplace apps, optional otherwise). Token decryption utilities (`parseToken`, `createToken`) are available as optional standalone exports for apps that need to inspect token contents.
 
-**Token decryption utilities** (standalone, not used by `createClient`):
+**Token decryption utilities** (standalone, not used by `createAssemblyKit`):
 
 1. HMAC-SHA256(apiKey).hex.slice(0,32) → 128-bit key
 2. AES-128-CBC decrypt: first 16 bytes of hex blob = IV, rest = ciphertext
@@ -121,7 +122,7 @@ This applies to every `export const`, `export function`, `export class`, and `ex
 
 Always import crypto as `import { ... } from 'node:crypto'` (explicit `node:` prefix for Bun + Node compat).
 
-**`isMarketplaceApp` flag:** When `true`, a token is required at `createClient()` construction time. When `false`, token is optional but endpoints requiring user context throw `AssemblyNoTokenError` at call time.
+**`isMarketplaceApp` flag:** When `true`, a token is required at `createAssemblyKit()` construction time. When `false`, token is optional but endpoints requiring user context throw `AssemblyNoTokenError` at call time.
 
 **`validateResponses` flag:** When `true` (default), all API responses are parsed through Zod schemas. Failed parses throw `AssemblyResponseParseError` (which carries the `ZodError`). Set to `false` to skip parsing for performance or trusted environments.
 

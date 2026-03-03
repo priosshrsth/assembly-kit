@@ -1,7 +1,7 @@
 import { AssemblyInvalidTokenError } from "src/errors/invalid-token";
 import { AssemblyNoTokenError } from "src/errors/no-token";
-import type { TokenPayload } from "src/schemas/base/token";
-import { TokenPayloadSchema } from "src/schemas/base/token";
+import type { TokenPayload } from "src/schemas/shared/token";
+import { TokenPayloadSchema } from "src/schemas/shared/token";
 
 import { decryptTokenString, encryptTokenString } from "./crypto";
 

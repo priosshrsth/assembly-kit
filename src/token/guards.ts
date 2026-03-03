@@ -1,5 +1,5 @@
 import { AssemblyUnauthorizedError } from "src/errors/unauthorized";
-import type { TokenPayload } from "src/schemas/base/token";
+import type { TokenPayload } from "src/schemas/shared/token";
 
 /** A token payload that identifies a client (portal) user. */
 export interface ClientTokenPayload extends TokenPayload {
