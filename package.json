@@ -30,34 +30,22 @@
         "default": "./dist/app-bridge/index.js"
       }
     },
+    "./bridge-ui": {
+      "import": {
+        "types": "./dist/bridge-ui/index.d.ts",
+        "default": "./dist/bridge-ui/index.js"
+      }
+    },
     "./schemas": {
       "import": {
         "types": "./dist/schemas/index.d.ts",
         "default": "./dist/schemas/index.js"
       }
     },
-    "./schemas/base": {
+    "./assembly-client": {
       "import": {
-        "types": "./dist/schemas/base/index.d.ts",
-        "default": "./dist/schemas/base/index.js"
-      }
-    },
-    "./schemas/responses": {
-      "import": {
-        "types": "./dist/schemas/responses/index.d.ts",
-        "default": "./dist/schemas/responses/index.js"
-      }
-    },
-    "./schemas/requests": {
-      "import": {
-        "types": "./dist/schemas/requests/index.d.ts",
-        "default": "./dist/schemas/requests/index.js"
-      }
-    },
-    "./bridge-ui": {
-      "import": {
-        "types": "./dist/bridge-ui/index.d.ts",
-        "default": "./dist/bridge-ui/index.js"
+        "types": "./dist/assembly-client/index.d.ts",
+        "default": "./dist/assembly-client/index.js"
       }
     },
     "./package.json": "./package.json"
@@ -75,8 +63,8 @@
     "type-check": "tsc --noEmit && tsc --noEmit -p test/tsconfig.json"
   },
   "dependencies": {
-    "@assembly-js/node-sdk": "^3.19.1",
     "ky": "^1.14.3",
+    "p-retry": "^7.1.1",
     "p-throttle": "^8.1.0",
     "zod": "^4.3.6"
   },
@@ -93,10 +81,14 @@
     "ultracite": "7.2.4"
   },
   "peerDependencies": {
+    "@assembly-js/node-sdk": "^3.19.1",
     "react": ">=18",
     "typescript": ">=4.5.0"
   },
   "peerDependenciesMeta": {
+    "@assembly-js/node-sdk": {
+      "optional": true
+    },
     "react": {
       "optional": true
     },

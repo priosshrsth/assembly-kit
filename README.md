@@ -14,12 +14,12 @@ npm install assembly-kit
 
 ### Client
 
-Create an SDK client with `createClient()`. Each call produces an independent instance with its own HTTP transport and rate limiter (safe for serverless environments).
+Create an SDK client with `createAssemblyKit()`. Each call produces an independent instance with its own HTTP transport and rate limiter (safe for serverless environments).
 
 ```typescript
-import { createClient } from "assembly-kit";
+import { createAssemblyKit } from "assembly-kit";
 
-const client = createClient({
+const client = createAssemblyKit({
   workspaceId: "ws-123",
   apiKey: "your-api-key",
 });
@@ -46,20 +46,40 @@ const task = await client.tasks.create({ title: "Follow up" });
 
 #### Resource namespaces
 
-| Namespace       | Methods                                               |
-| --------------- | ----------------------------------------------------- |
-| `workspace`     | `get()`                                               |
-| `clients`       | `list()`, `get()`, `create()`, `update()`, `delete()` |
-| `companies`     | `list()`, `get()`, `create()`, `update()`, `delete()` |
-| `internalUsers` | `list()`, `get()`                                     |
-| `notifications` | `list()`, `create()`, `delete()`                      |
-| `customFields`  | `list(entityType)`                                    |
-| `tasks`         | `list()`, `get()`, `create()`, `update()`, `delete()` |
+| Namespace               | Methods                                                          |
+| ----------------------- | ---------------------------------------------------------------- |
+| `workspace`             | `get()`                                                          |
+| `clients`               | `list()`, `get()`, `create()`, `update()`, `delete()`            |
+| `companies`             | `list()`, `get()`, `create()`, `update()`, `delete()`            |
+| `internalUsers`         | `list()`, `get()`                                                |
+| `customFields`          | `list(entityType)`                                               |
+| `customFieldOptions`    | `list()`                                                         |
+| `notes`                 | `list()`, `get()`, `create()`, `update()`, `delete()`            |
+| `messageChannels`       | `list()`, `get()`, `create()`                                    |
+| `messages`              | `list()`, `send()`                                               |
+| `products`              | `list()`, `get()`                                                |
+| `prices`                | `list()`, `get()`                                                |
+| `invoiceTemplates`      | `list()`                                                         |
+| `invoices`              | `list()`, `get()`, `create()`                                    |
+| `subscriptionTemplates` | `list()`                                                         |
+| `subscriptions`         | `list()`, `get()`, `create()`, `cancel()`                        |
+| `payments`              | `list()`                                                         |
+| `fileChannels`          | `list()`, `get()`, `create()`                                    |
+| `files`                 | `list()`, `get()`, `create()`, `delete()`, `updatePermissions()` |
+| `contractTemplates`     | `list()`, `get()`                                                |
+| `contracts`             | `list()`, `get()`, `send()`                                      |
+| `forms`                 | `list()`, `get()`                                                |
+| `formResponses`         | `list()`, `request()`                                            |
+| `tasks`                 | `list()`, `get()`, `create()`, `update()`, `delete()`            |
+| `taskTemplates`         | `list()`, `get()`                                                |
+| `notifications`         | `list()`, `create()`, `delete()`, `markRead()`, `markUnread()`   |
+| `appConnections`        | `list()`, `create()`                                             |
+| `appInstalls`           | `list()`                                                         |
 
 #### Marketplace apps
 
 ```typescript
-const client = createClient({
+const client = createAssemblyKit({
   workspaceId: "ws-123",
   apiKey: "your-api-key",
   token: encryptedToken,
@@ -70,7 +90,7 @@ const client = createClient({
 #### Disabling response validation
 
 ```typescript
-const client = createClient({
+const client = createAssemblyKit({
   workspaceId: "ws-123",
   apiKey: "your-api-key",
   validateResponses: false, // skip Zod parsing for performance
@@ -82,9 +102,9 @@ const client = createClient({
 Use `paginate()` to iterate through all pages of a paginated resource:
 
 ```typescript
-import { createClient, paginate } from "assembly-kit";
+import { createAssemblyKit, paginate } from "assembly-kit";
 
-const client = createClient({ workspaceId: "ws-123", apiKey: "key" });
+const client = createAssemblyKit({ workspaceId: "ws-123", apiKey: "key" });
 
 for await (const task of paginate(client.tasks.list)) {
   console.log(task.title);
@@ -153,10 +173,9 @@ try {
 
 ### Schemas
 
-All Zod schemas live under `assembly-kit/schemas`. Each resource has a **base** schema, a **response** schema (wrapping the base for paginated API responses), and optionally a **request** schema for create/update payloads.
+All Zod schemas are exported from the main `assembly-kit` entry point. Each resource has a **base** schema, a **response** schema (wrapping the base for paginated API responses), and optionally a **request** schema for create/update payloads.
 
 ```typescript
-// Base schemas — the core shape of each resource
 import {
   ClientSchema,
   CompanySchema,
@@ -168,7 +187,7 @@ import {
   CustomFieldSchema,
   TokenPayloadSchema,
   HexColorSchema,
-} from "assembly-kit/schemas";
+} from "assembly-kit";
 
 // TypeScript types inferred from schemas
 import type {
@@ -178,7 +197,7 @@ import type {
   TaskStatus,
   Workspace,
   InternalUser,
-} from "assembly-kit/schemas";
+} from "assembly-kit";
 ```
 
 #### Response schemas
@@ -190,13 +209,13 @@ import {
   ClientsResponseSchema,
   CompaniesResponseSchema,
   TasksResponseSchema,
-} from "assembly-kit/schemas";
+} from "assembly-kit";
 
 import type {
   ClientsResponse,
   CompaniesResponse,
   TasksResponse,
-} from "assembly-kit/schemas";
+} from "assembly-kit";
 ```
 
 #### Request schemas
@@ -209,18 +228,15 @@ import {
   ClientUpdateRequestSchema,
   CompanyCreateRequestSchema,
   TaskCreateRequestSchema,
-} from "assembly-kit/schemas";
+} from "assembly-kit";
 
-import type {
-  ClientCreateRequest,
-  ClientUpdateRequest,
-} from "assembly-kit/schemas";
+import type { ClientCreateRequest, ClientUpdateRequest } from "assembly-kit";
 ```
 
 #### Validating data
 
 ```typescript
-import { ClientSchema } from "assembly-kit/schemas";
+import { ClientSchema } from "assembly-kit";
 
 const result = ClientSchema.safeParse(unknownData);
 
@@ -229,16 +245,6 @@ if (result.success) {
 } else {
   console.error(result.error);
 }
-```
-
-#### Sub-path imports
-
-You can also import from specific schema groups to reduce bundle size:
-
-```typescript
-import { ClientSchema } from "assembly-kit/schemas/base";
-import { ClientsResponseSchema } from "assembly-kit/schemas/responses";
-import { ClientCreateRequestSchema } from "assembly-kit/schemas/requests";
 ```
 
 ### Token Utilities
@@ -471,6 +477,56 @@ usePrimaryCta(
   { portalUrl: "https://my-portal.example.com" }
 );
 ```
+
+### Legacy Client
+
+A drop-in wrapper around the original `@assembly-js/node-sdk` that adds automatic retry with exponential backoff on 429 (rate limit) and 5xx (server) errors. Uses a `Proxy` to wrap all 76+ SDK methods automatically.
+
+Requires `@assembly-js/node-sdk` as a peer dependency — install it alongside `assembly-kit`:
+
+```bash
+bun add assembly-kit @assembly-js/node-sdk
+```
+
+#### Basic usage
+
+```typescript
+import { createAssemblyClient } from "assembly-kit/legacy";
+
+const client = createAssemblyClient({
+  apiKey: "your-api-key",
+  token: "encrypted-token", // optional
+});
+
+// All original SDK methods are available, with automatic retry
+const workspace = await client.retrieveWorkspace();
+const clients = await client.listClients({ limit: 50 });
+```
+
+#### Custom retry options
+
+```typescript
+const client = createAssemblyClient({
+  apiKey: "your-api-key",
+  retry: {
+    retries: 5, // max attempts (default: 3)
+    minTimeout: 500, // min delay in ms (default: 1000)
+    maxTimeout: 10000, // max delay in ms (default: 5000)
+    factor: 2, // exponential factor (default: 2)
+  },
+});
+```
+
+#### Disabling retry
+
+```typescript
+const client = createAssemblyClient({
+  apiKey: "your-api-key",
+  retry: false, // SDK methods called directly, no retry wrapper
+});
+```
+
+> **Note:** The original SDK uses a global `OpenAPI` config object internally. Multiple `createAssemblyClient()` calls with different credentials will interfere with each other. Use one instance per credential set.
 
 ## Development
 

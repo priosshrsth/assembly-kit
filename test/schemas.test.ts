@@ -9,16 +9,15 @@ import {
   CustomFieldEntityTypeSchema,
   CustomFieldSchema,
   CustomFieldTypeSchema,
-  HexColorSchema,
   InternalUserSchema,
   ListCustomFieldResponseSchema,
   NotificationCreateRequestSchema,
   NotificationsResponseSchema,
   TaskStatusSchema,
   TasksResponseSchema,
-  TokenPayloadSchema,
   WorkspaceSchema,
-} from "src/schemas";
+} from "src/modules";
+import { HexColorSchema, TokenPayloadSchema } from "src/schemas/shared";
 import type { z } from "zod";
 
 // ─── HexColorSchema ───────────────────────────────────────────────────────────

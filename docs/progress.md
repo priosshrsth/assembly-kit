@@ -13,7 +13,7 @@ Legend: ✅ done · 🚧 in progress · ⬜ not started
 - ✅ `src` path alias (`@/*`) configured in tsconfig.json
 - ✅ `bunup.config.ts` — 4 entry points (index, schemas, app-bridge, bridge-ui)
 - ✅ Runtime deps: `zod` installed
-- ⬜ Runtime deps: `ky`, `p-throttle` (needed for Feature 4)
+- ✅ Runtime deps: `ky`, `p-throttle` (needed for Feature 4)
 - ✅ Entry point stubs: `src/schemas/index.ts`, `src/app-bridge/index.ts`, `src/bridge-ui/index.ts`
 - ✅ Test fixtures: `test/fixtures/tokens.ts` (encrypted token constants for token tests)
 
@@ -187,7 +187,7 @@ Legend: ✅ done · 🚧 in progress · ⬜ not started
 - ✅ `src/client/parse-response.ts` — Zod validate-or-cast helper
 - ✅ `src/client/require-token.ts` — token guard
 - ✅ `src/client/build-search-params.ts` — generic search params builder
-- ✅ `src/client/assembly-client.ts` — `AssemblyClient` class with 7 resource namespaces
+- ✅ `src/client/assembly-client.ts` — `AssemblyClient` class with 27 resource namespaces
 - ✅ `src/client/create-client.ts` — `createClient()` factory
 - ✅ `src/client/index.ts` — barrel export
 - ✅ `src/version.ts` — SDK version constant
@@ -195,10 +195,30 @@ Legend: ✅ done · 🚧 in progress · ⬜ not started
 - ✅ `src/resources/clients.ts` — `ClientsResource` (list, get, create, update, delete)
 - ✅ `src/resources/companies.ts` — `CompaniesResource` (list, get, create, update, delete)
 - ✅ `src/resources/internal-users.ts` — `InternalUsersResource` (list, get)
-- ✅ `src/resources/notifications.ts` — `NotificationsResource` (list, create, delete)
+- ✅ `src/resources/notifications.ts` — `NotificationsResource` (list, create, delete, markRead, markUnread)
 - ✅ `src/resources/custom-fields.ts` — `CustomFieldsResource` (list)
+- ✅ `src/resources/custom-field-options.ts` — `CustomFieldOptionsResource` (list)
+- ✅ `src/resources/notes.ts` — `NotesResource` (list, get, create, update, delete)
+- ✅ `src/resources/message-channels.ts` — `MessageChannelsResource` (list, get, create)
+- ✅ `src/resources/messages.ts` — `MessagesResource` (list, send)
+- ✅ `src/resources/products.ts` — `ProductsResource` (list, get)
+- ✅ `src/resources/prices.ts` — `PricesResource` (list, get)
+- ✅ `src/resources/invoice-templates.ts` — `InvoiceTemplatesResource` (list)
+- ✅ `src/resources/invoices.ts` — `InvoicesResource` (list, get, create)
+- ✅ `src/resources/subscription-templates.ts` — `SubscriptionTemplatesResource` (list)
+- ✅ `src/resources/subscriptions.ts` — `SubscriptionsResource` (list, get, create, cancel)
+- ✅ `src/resources/payments.ts` — `PaymentsResource` (list)
+- ✅ `src/resources/file-channels.ts` — `FileChannelsResource` (list, get, create)
+- ✅ `src/resources/files.ts` — `FilesResource` (list, get, create, delete, updatePermissions)
+- ✅ `src/resources/contract-templates.ts` — `ContractTemplatesResource` (list, get)
+- ✅ `src/resources/contracts.ts` — `ContractsResource` (list, get, send)
+- ✅ `src/resources/forms.ts` — `FormsResource` (list, get)
+- ✅ `src/resources/form-responses.ts` — `FormResponsesResource` (list, request)
 - ✅ `src/resources/tasks.ts` — `TasksResource` (list, get, create, update, delete)
-- ✅ `src/resources/index.ts` — barrel export
+- ✅ `src/resources/task-templates.ts` — `TaskTemplatesResource` (list, get)
+- ✅ `src/resources/app-connections.ts` — `AppConnectionsResource` (list, create)
+- ✅ `src/resources/app-installs.ts` — `AppInstallsResource` (list)
+- ✅ `src/resources/index.ts` — barrel export (27 resources)
 - ✅ `test/client.test.ts` (12 tests passing — all transport calls mocked)
   - ✅ Empty `workspaceId` → `AssemblyMissingApiKeyError`
   - ✅ Empty `apiKey` → `AssemblyMissingApiKeyError`
@@ -265,11 +285,13 @@ Legend: ✅ done · 🚧 in progress · ⬜ not started
 ## Feature 9: Build Configuration & Export Map
 
 > Dependency: All features complete
+> I think export map is already handled by bunup. So there;s nothing to do there probably.
 
 - ⬜ `package.json` export map with all 4 entry points
 - ⬜ `"sideEffects": false` in `package.json`
 - ⬜ `bun run build` produces clean `dist/` output
 - ⬜ All 4 entry point imports resolve correctly
+- ⬜ We should ensure that npm package when published should not contain anything except tsconfig, package.jsona dn dist folder. Basically only things it need.
 
 ---
 
@@ -283,3 +305,52 @@ Legend: ✅ done · 🚧 in progress · ⬜ not started
 - ⬜ `paginate()`
 - ⬜ `sendToParent()` + all React hooks
 - ⬜ All Zod schemas
+
+---
+
+## Feature 11: Legacy Client Wrapper ✅
+
+> No dependency on core SDK layers. Peer dep: `@assembly-js/node-sdk >= 3.19.1`
+
+- ✅ `src/legacy/error-filter.ts` — duck-typed `isRetryableError(error)` (429 + 5xx)
+- ✅ `src/legacy/options.ts` — `RetryOptions`, `LegacyClientOptions`, `DEFAULT_RETRY`
+- ✅ `src/legacy/wrap-sdk.ts` — Proxy-based wrapper, `LegacyAssemblyClient` mapped type
+- ✅ `src/legacy/retry.ts` — `createRetryFn(opts)` using `p-retry`
+- ✅ `src/legacy/create-legacy-client.ts` — `createLegacyClient(options)` factory
+- ✅ `src/legacy/index.ts` — barrel export
+- ✅ `package.json` — `assembly-kit/legacy` export, `p-retry` dep, `@assembly-js/node-sdk` optional peer dep
+- ✅ `bunup.config.ts` — 9th entry point
+- ✅ `test/legacy/error-filter.test.ts` (7 tests)
+  - ✅ 429/500/503 → retryable
+  - ✅ 401/404 → not retryable
+  - ✅ Non-object / no status → not retryable
+- ✅ `test/legacy/create-legacy-client.test.ts` (5 tests)
+  - ✅ Constructs with apiKey only / apiKey + token
+  - ✅ `retry: false` → unwrapped SDK methods
+  - ✅ Retries on 429, succeeds on 2nd attempt
+  - ✅ Does not retry on 401
+- ✅ `bun run type-check` passes
+- ✅ `bun run lint` passes
+- ✅ `bun run build` succeeds (9 entry points)
+- ✅ `bun test` passes (306 tests across 36 files)
+
+---
+
+## Module-Based Restructure ✅
+
+Restructured from split `src/schemas/` + `src/resources/` into co-located `src/modules/<resource>/` directories. Renamed client classes to distinguish new SDK from legacy wrapper.
+
+### Changes
+
+- ✅ **Co-located modules** — each of 27 resources now lives in `src/modules/<name>/` with `schema.ts` (merged base + response + request), `resource.ts`, and `index.ts`
+- ✅ **Shared schemas** — `HexColorSchema`, `MembershipTypeSchema`, `TokenPayloadSchema` moved to `src/schemas/shared/`
+- ✅ **Client renamed** — `AssemblyClient` → `AssemblyKitClient`, `createClient()` → `createAssemblyKit()`
+- ✅ **Legacy renamed** — `createLegacyClient()` → `createAssemblyClient()`, `LegacyAssemblyClient` → `AssemblyClient`
+- ✅ **Entry points trimmed** — 4 entry points: `src/index.ts`, `src/app-bridge/index.ts`, `src/bridge-ui/index.ts`, `src/legacy/index.ts`
+- ✅ **Schema sub-paths removed** — `assembly-kit/schemas`, `assembly-kit/schemas/base`, `assembly-kit/schemas/responses`, `assembly-kit/schemas/requests` no longer exported; all schemas available from `assembly-kit` directly
+- ✅ **Tests moved** — `test/resources/` → `test/modules/`, updated imports
+- ✅ **Old files deleted** — `src/schemas/base/`, `src/schemas/responses/`, `src/schemas/requests/`, `src/resources/`, old client/legacy files
+- ✅ `bun run type-check` passes
+- ✅ `bun run lint` passes (0 warnings, 0 errors)
+- ✅ `bun run build` succeeds (4 entry points)
+- ✅ `bun test` passes (306 tests across 36 files)

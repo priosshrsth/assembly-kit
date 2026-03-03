@@ -1,3 +1,2 @@
-export * from "./base";
-export * from "./responses";
-export * from "./requests";
+export * from "src/modules";
+export * from "./shared";

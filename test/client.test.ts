@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 
-import { createClient } from "src/client/create-client";
-import type { ClientOptions } from "src/client/options";
+import { createAssemblyKit } from "src/assembly-kit/create-assembly-kit";
+import type { ClientOptions } from "src/assembly-kit/options";
 import { AssemblyMissingApiKeyError } from "src/errors/missing-api-key";
 import { AssemblyNoTokenError } from "src/errors/no-token";
 import { AssemblyResponseParseError } from "src/errors/response-parse";
@@ -82,10 +82,10 @@ const callAt = (calls: MockCall[], index = 0): MockCall => {
 // Validation tests
 // ---------------------------------------------------------------------------
 
-describe("createClient — validation", () => {
+describe("createAssemblyKit — validation", () => {
   it("throws AssemblyMissingApiKeyError when workspaceId is empty", () => {
     try {
-      createClient({ apiKey: "key", workspaceId: "" });
+      createAssemblyKit({ apiKey: "key", workspaceId: "" });
       expect.unreachable("Should have thrown");
     } catch (error) {
       expect(error).toBeInstanceOf(AssemblyMissingApiKeyError);
@@ -94,7 +94,7 @@ describe("createClient — validation", () => {
 
   it("throws AssemblyMissingApiKeyError when apiKey is empty", () => {
     try {
-      createClient({ apiKey: "", workspaceId: "ws-123" });
+      createAssemblyKit({ apiKey: "", workspaceId: "ws-123" });
       expect.unreachable("Should have thrown");
     } catch (error) {
       expect(error).toBeInstanceOf(AssemblyMissingApiKeyError);
@@ -103,7 +103,7 @@ describe("createClient — validation", () => {
 
   it("throws AssemblyNoTokenError when isMarketplaceApp=true and no token", () => {
     try {
-      createClient({
+      createAssemblyKit({
         apiKey: "key",
         isMarketplaceApp: true,
         workspaceId: "ws-123",
@@ -118,7 +118,7 @@ describe("createClient — validation", () => {
     const { fetch } = createMockFetch([
       { body: WORKSPACE_FIXTURE, status: 200 },
     ]);
-    const client = createClient({
+    const client = createAssemblyKit({
       ...baseOpts(fetch),
       isMarketplaceApp: true,
       token: "some-token",
@@ -131,7 +131,7 @@ describe("createClient — validation", () => {
     const { fetch } = createMockFetch([
       { body: WORKSPACE_FIXTURE, status: 200 },
     ]);
-    const client = createClient(baseOpts(fetch));
+    const client = createAssemblyKit(baseOpts(fetch));
     expect(client).toBeDefined();
   });
 });
@@ -140,12 +140,12 @@ describe("createClient — validation", () => {
 // Compound key tests
 // ---------------------------------------------------------------------------
 
-describe("createClient — compound key", () => {
+describe("createAssemblyKit — compound key", () => {
   it("sends X-API-Key as workspaceId/apiKey when no tokenId", async () => {
     const { fetch, calls } = createMockFetch([
       { body: WORKSPACE_FIXTURE, status: 200 },
     ]);
-    const client = createClient(baseOpts(fetch));
+    const client = createAssemblyKit(baseOpts(fetch));
 
     await client.workspace.get();
     const call = callAt(calls);
@@ -156,7 +156,7 @@ describe("createClient — compound key", () => {
     const { fetch, calls } = createMockFetch([
       { body: WORKSPACE_FIXTURE, status: 200 },
     ]);
-    const client = createClient({ ...baseOpts(fetch), tokenId: "tok-1" });
+    const client = createAssemblyKit({ ...baseOpts(fetch), tokenId: "tok-1" });
 
     await client.workspace.get();
     const call = callAt(calls);
@@ -168,8 +168,8 @@ describe("createClient — compound key", () => {
 // Independence tests
 // ---------------------------------------------------------------------------
 
-describe("createClient — independence", () => {
-  it("two createClient() calls produce independent instances", async () => {
+describe("createAssemblyKit — independence", () => {
+  it("two createAssemblyKit() calls produce independent instances", async () => {
     const { fetch: f1, calls: c1 } = createMockFetch([
       { body: WORKSPACE_FIXTURE, status: 200 },
     ]);
@@ -177,8 +177,8 @@ describe("createClient — independence", () => {
       { body: WORKSPACE_FIXTURE, status: 200 },
     ]);
 
-    const client1 = createClient({ ...baseOpts(f1), workspaceId: "ws-a" });
-    const client2 = createClient({ ...baseOpts(f2), workspaceId: "ws-b" });
+    const client1 = createAssemblyKit({ ...baseOpts(f1), workspaceId: "ws-a" });
+    const client2 = createAssemblyKit({ ...baseOpts(f2), workspaceId: "ws-b" });
 
     await client1.workspace.get();
     await client2.workspace.get();
@@ -194,11 +194,11 @@ describe("createClient — independence", () => {
 // Response validation tests
 // ---------------------------------------------------------------------------
 
-describe("createClient — validateResponses", () => {
+describe("createAssemblyKit — validateResponses", () => {
   it("returns raw data when validateResponses is false", async () => {
     const badShape = { extra: true, unexpected: "data" };
     const { fetch } = createMockFetch([{ body: badShape, status: 200 }]);
-    const client = createClient({
+    const client = createAssemblyKit({
       ...baseOpts(fetch),
       validateResponses: false,
     });
@@ -210,7 +210,7 @@ describe("createClient — validateResponses", () => {
   it("throws AssemblyResponseParseError when validateResponses is true and response is invalid", async () => {
     const badShape = { notAWorkspace: true };
     const { fetch } = createMockFetch([{ body: badShape, status: 200 }]);
-    const client = createClient({
+    const client = createAssemblyKit({
       ...baseOpts(fetch),
       validateResponses: true,
     });
@@ -226,7 +226,7 @@ describe("createClient — validateResponses", () => {
   it("validates by default (validateResponses defaults to true)", async () => {
     const badShape = { notAWorkspace: true };
     const { fetch } = createMockFetch([{ body: badShape, status: 200 }]);
-    const client = createClient(baseOpts(fetch));
+    const client = createAssemblyKit(baseOpts(fetch));
 
     try {
       await client.workspace.get();
@@ -241,17 +241,43 @@ describe("createClient — validateResponses", () => {
 // Resource namespaces
 // ---------------------------------------------------------------------------
 
-describe("createClient — resource namespaces", () => {
+describe("createAssemblyKit — resource namespaces", () => {
   it("exposes all expected resource namespaces", () => {
     const { fetch } = createMockFetch([]);
-    const client = createClient(baseOpts(fetch));
+    const client = createAssemblyKit(baseOpts(fetch));
 
-    expect(client.workspace).toBeDefined();
-    expect(client.clients).toBeDefined();
-    expect(client.companies).toBeDefined();
-    expect(client.internalUsers).toBeDefined();
-    expect(client.notifications).toBeDefined();
-    expect(client.customFields).toBeDefined();
-    expect(client.tasks).toBeDefined();
+    const expected = [
+      "workspace",
+      "clients",
+      "companies",
+      "internalUsers",
+      "customFields",
+      "customFieldOptions",
+      "notes",
+      "messageChannels",
+      "messages",
+      "products",
+      "prices",
+      "invoiceTemplates",
+      "invoices",
+      "subscriptionTemplates",
+      "subscriptions",
+      "payments",
+      "fileChannels",
+      "files",
+      "contractTemplates",
+      "contracts",
+      "forms",
+      "formResponses",
+      "tasks",
+      "taskTemplates",
+      "notifications",
+      "appConnections",
+      "appInstalls",
+    ] as const;
+
+    for (const ns of expected) {
+      expect(client[ns]).toBeDefined();
+    }
   });
 });

@@ -5,7 +5,7 @@ import {
   AssemblyNoTokenError,
   AssemblyUnauthorizedError,
 } from "src/errors";
-import type { TokenPayload } from "src/schemas/base/token";
+import type { TokenPayload } from "src/schemas/shared/token";
 import {
   buildCompoundKey,
   createToken,
