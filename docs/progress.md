@@ -282,29 +282,15 @@ Legend: ✅ done · 🚧 in progress · ⬜ not started
 
 ---
 
-## Feature 9: Build Configuration & Export Map
-
-> Dependency: All features complete
-> I think export map is already handled by bunup. So there;s nothing to do there probably.
-
-- ⬜ `package.json` export map with all 4 entry points
-- ⬜ `"sideEffects": false` in `package.json`
-- ⬜ `bun run build` produces clean `dist/` output
-- ⬜ All 4 entry point imports resolve correctly
-- ⬜ We should ensure that npm package when published should not contain anything except tsconfig, package.jsona dn dist folder. Basically only things it need.
-
----
-
-## Feature 10: JSDoc
+## Feature 9: Build Configuration & Export Map ✅
 
 > Dependency: All features complete
 
-- ⬜ `createClient()` + all `ClientOptions` fields
-- ⬜ All error classes
-- ⬜ `parseToken()`, `ensureIsClient()`, `ensureIsInternalUser()`
-- ⬜ `paginate()`
-- ⬜ `sendToParent()` + all React hooks
-- ⬜ All Zod schemas
+- ✅ `package.json` export map with all 5 entry points (`.`, `./schemas`, `./app-bridge`, `./bridge-ui`, `./assembly-client`)
+- ✅ `"sideEffects": false` in `package.json` — enables tree-shaking in bundlers
+- ✅ `bun run build` produces clean `dist/` output (10 files, 182 KB raw / 33 KB gzip)
+- ✅ All 5 entry point imports resolve correctly (verified in Node 24 and Bun)
+- ✅ npm package contains only `dist/`, `package.json`, `LICENSE`, and `README.md` (15 files, 77 KB packed)
 
 ---
 
@@ -312,14 +298,14 @@ Legend: ✅ done · 🚧 in progress · ⬜ not started
 
 > No dependency on core SDK layers. Peer dep: `@assembly-js/node-sdk >= 3.19.1`
 
-- ✅ `src/legacy/error-filter.ts` — duck-typed `isRetryableError(error)` (429 + 5xx)
-- ✅ `src/legacy/options.ts` — `RetryOptions`, `LegacyClientOptions`, `DEFAULT_RETRY`
-- ✅ `src/legacy/wrap-sdk.ts` — Proxy-based wrapper, `LegacyAssemblyClient` mapped type
-- ✅ `src/legacy/retry.ts` — `createRetryFn(opts)` using `p-retry`
-- ✅ `src/legacy/create-legacy-client.ts` — `createLegacyClient(options)` factory
-- ✅ `src/legacy/index.ts` — barrel export
-- ✅ `package.json` — `assembly-kit/legacy` export, `p-retry` dep, `@assembly-js/node-sdk` optional peer dep
-- ✅ `bunup.config.ts` — 9th entry point
+- ✅ `src/assembly-client/error-filter.ts` — duck-typed `isRetryableError(error)` (429 + 5xx)
+- ✅ `src/assembly-client/options.ts` — `RetryOptions`, `LegacyClientOptions`, `DEFAULT_RETRY`
+- ✅ `src/assembly-client/wrap-sdk.ts` — Proxy-based wrapper, `AssemblyClient` mapped type
+- ✅ `src/assembly-client/retry.ts` — `createRetryFn(opts)` using `p-retry`
+- ✅ `src/assembly-client/create-assembly-client.ts` — `createAssemblyClient(options)` factory
+- ✅ `src/assembly-client/index.ts` — barrel export
+- ✅ `package.json` — `assembly-kit/assembly-client` export, `p-retry` dep, `@assembly-js/node-sdk` optional peer dep
+- ✅ `bunup.config.ts` — 5th entry point
 - ✅ `test/legacy/error-filter.test.ts` (7 tests)
   - ✅ 429/500/503 → retryable
   - ✅ 401/404 → not retryable
@@ -345,9 +331,9 @@ Restructured from split `src/schemas/` + `src/resources/` into co-located `src/m
 - ✅ **Co-located modules** — each of 27 resources now lives in `src/modules/<name>/` with `schema.ts` (merged base + response + request), `resource.ts`, and `index.ts`
 - ✅ **Shared schemas** — `HexColorSchema`, `MembershipTypeSchema`, `TokenPayloadSchema` moved to `src/schemas/shared/`
 - ✅ **Client renamed** — `AssemblyClient` → `AssemblyKitClient`, `createClient()` → `createAssemblyKit()`
-- ✅ **Legacy renamed** — `createLegacyClient()` → `createAssemblyClient()`, `LegacyAssemblyClient` → `AssemblyClient`
-- ✅ **Entry points trimmed** — 4 entry points: `src/index.ts`, `src/app-bridge/index.ts`, `src/bridge-ui/index.ts`, `src/legacy/index.ts`
-- ✅ **Schema sub-paths removed** — `assembly-kit/schemas`, `assembly-kit/schemas/base`, `assembly-kit/schemas/responses`, `assembly-kit/schemas/requests` no longer exported; all schemas available from `assembly-kit` directly
+- ✅ **Legacy renamed** — `createLegacyClient()` → `createAssemblyClient()`, `LegacyAssemblyClient` → `AssemblyClient`, `src/legacy/` → `src/assembly-client/`
+- ✅ **Entry points** — 5 entry points: `src/index.ts`, `src/schemas/index.ts`, `src/app-bridge/index.ts`, `src/bridge-ui/index.ts`, `src/assembly-client/index.ts`
+- ✅ **Schemas entry point** — `assembly-kit/schemas` re-exports all module schemas + shared schemas
 - ✅ **Tests moved** — `test/resources/` → `test/modules/`, updated imports
 - ✅ **Old files deleted** — `src/schemas/base/`, `src/schemas/responses/`, `src/schemas/requests/`, `src/resources/`, old client/legacy files
 - ✅ `bun run type-check` passes

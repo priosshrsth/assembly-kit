@@ -173,7 +173,7 @@ try {
 
 ### Schemas
 
-All Zod schemas are exported from the main `assembly-kit` entry point. Each resource has a **base** schema, a **response** schema (wrapping the base for paginated API responses), and optionally a **request** schema for create/update payloads.
+All Zod schemas are available from `assembly-kit/schemas`. Each resource has a **base** schema, a **response** schema (wrapping the base for paginated API responses), and optionally a **request** schema for create/update payloads.
 
 ```typescript
 import {
@@ -187,7 +187,7 @@ import {
   CustomFieldSchema,
   TokenPayloadSchema,
   HexColorSchema,
-} from "assembly-kit";
+} from "assembly-kit/schemas";
 
 // TypeScript types inferred from schemas
 import type {
@@ -197,7 +197,7 @@ import type {
   TaskStatus,
   Workspace,
   InternalUser,
-} from "assembly-kit";
+} from "assembly-kit/schemas";
 ```
 
 #### Response schemas
@@ -209,13 +209,13 @@ import {
   ClientsResponseSchema,
   CompaniesResponseSchema,
   TasksResponseSchema,
-} from "assembly-kit";
+} from "assembly-kit/schemas";
 
 import type {
   ClientsResponse,
   CompaniesResponse,
   TasksResponse,
-} from "assembly-kit";
+} from "assembly-kit/schemas";
 ```
 
 #### Request schemas
@@ -228,15 +228,18 @@ import {
   ClientUpdateRequestSchema,
   CompanyCreateRequestSchema,
   TaskCreateRequestSchema,
-} from "assembly-kit";
+} from "assembly-kit/schemas";
 
-import type { ClientCreateRequest, ClientUpdateRequest } from "assembly-kit";
+import type {
+  ClientCreateRequest,
+  ClientUpdateRequest,
+} from "assembly-kit/schemas";
 ```
 
 #### Validating data
 
 ```typescript
-import { ClientSchema } from "assembly-kit";
+import { ClientSchema } from "assembly-kit/schemas";
 
 const result = ClientSchema.safeParse(unknownData);
 
@@ -491,7 +494,7 @@ bun add assembly-kit @assembly-js/node-sdk
 #### Basic usage
 
 ```typescript
-import { createAssemblyClient } from "assembly-kit/legacy";
+import { createAssemblyClient } from "assembly-kit/assembly-client";
 
 const client = createAssemblyClient({
   apiKey: "your-api-key",
