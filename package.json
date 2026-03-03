@@ -62,7 +62,7 @@
     "dev": "bunup --watch",
     "format": "ultracite fix",
     "lint": "ultracite check",
-    "prepare": "lefthook install",
+    "prepare": "lefthook install || true",
     "release": "bumpp --commit --push --tag",
     "test": "bun test",
     "test:coverage": "bun test --coverage",
