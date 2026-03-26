@@ -1,15 +1,17 @@
 /* eslint-disable eslint-plugin-promise/avoid-new */
 import { describe, expect, it, mock } from "bun:test";
 
-// Mock the SDK before importing AssemblyKit
+let mockRetrieveWorkspace: (...args: unknown[]) => Promise<unknown>;
+
+// Mock the SDK — delegate to a mutable function so tests can control behavior
 mock.module("@assembly-js/node-sdk", () => ({
-  assemblyApi: () => ({ retrieveWorkspace: () => Promise.resolve({}) }),
+  assemblyApi: () => ({
+    retrieveWorkspace: (...args: unknown[]) => mockRetrieveWorkspace(...args),
+  }),
 }));
 
 // eslint-disable-next-line eslint-plugin-import/first
 import { AssemblyKit } from "src/assembly-kit/assembly-kit";
-
-const opts = { apiKey: "test-key" };
 
 /** Run `fn` in a fresh async context (isolated from the test runner's context). */
 const inFreshContext = (fn: () => void): Promise<void> =>
@@ -20,7 +22,11 @@ const inFreshContext = (fn: () => void): Promise<void> =>
     }, 0);
   });
 
+// ─── Singleton (.new) ────────────────────────────────────────────────────────
+
 describe("AssemblyKit.new", () => {
+  const opts = { apiKey: "test-key" };
+
   it("returns the same instance on repeated .new() calls", async () => {
     await inFreshContext(() => {
       const first = AssemblyKit.new(opts);
@@ -48,5 +54,101 @@ describe("AssemblyKit.new", () => {
       }),
     ]);
     expect(instances[0]).not.toBe(instances[1]);
+  });
+});
+
+// ─── Retry ───────────────────────────────────────────────────────────────────
+
+class MockApiError extends Error {
+  status: number;
+  constructor(status: number) {
+    super(`HTTP ${status}`);
+    this.status = status;
+    this.name = "MockApiError";
+  }
+}
+
+describe("retry behavior", () => {
+  it("retries on 429 and eventually succeeds", async () => {
+    let callCount = 0;
+    mockRetrieveWorkspace = () => {
+      callCount += 1;
+      if (callCount <= 2) {
+        return Promise.reject(new MockApiError(429));
+      }
+      return Promise.resolve({ id: "ws-1", object: "workspace" });
+    };
+
+    const kit = new AssemblyKit({
+      apiKey: "test-key",
+      retry: { maxTimeout: 50, minTimeout: 10, retries: 3 },
+      validateResponses: false,
+    });
+
+    const result = await kit.workspace.retrieve();
+    expect(result).toEqual({ id: "ws-1", object: "workspace" });
+    expect(callCount).toBe(3);
+  });
+
+  it("retries on 500 and eventually succeeds", async () => {
+    let callCount = 0;
+    mockRetrieveWorkspace = () => {
+      callCount += 1;
+      if (callCount <= 1) {
+        return Promise.reject(new MockApiError(500));
+      }
+      return Promise.resolve({ id: "ws-2", object: "workspace" });
+    };
+
+    const kit = new AssemblyKit({
+      apiKey: "test-key",
+      retry: { maxTimeout: 50, minTimeout: 10, retries: 3 },
+      validateResponses: false,
+    });
+
+    const result = await kit.workspace.retrieve();
+    expect(result).toEqual({ id: "ws-2", object: "workspace" });
+    expect(callCount).toBe(2);
+  });
+
+  it("does not retry on 400 (non-retryable)", async () => {
+    mockRetrieveWorkspace = () => Promise.reject(new MockApiError(400));
+
+    const kit = new AssemblyKit({
+      apiKey: "test-key",
+      retry: { maxTimeout: 50, minTimeout: 10, retries: 3 },
+      validateResponses: false,
+    });
+
+    await expect(kit.workspace.retrieve()).rejects.toThrow("HTTP 400");
+  });
+
+  it("throws after exhausting retries", async () => {
+    mockRetrieveWorkspace = () => Promise.reject(new MockApiError(503));
+
+    const kit = new AssemblyKit({
+      apiKey: "test-key",
+      retry: { maxTimeout: 50, minTimeout: 10, retries: 2 },
+      validateResponses: false,
+    });
+
+    await expect(kit.workspace.retrieve()).rejects.toThrow("HTTP 503");
+  });
+
+  it("skips retry when retry: false", async () => {
+    let callCount = 0;
+    mockRetrieveWorkspace = () => {
+      callCount += 1;
+      return Promise.reject(new MockApiError(429));
+    };
+
+    const kit = new AssemblyKit({
+      apiKey: "test-key",
+      retry: false,
+      validateResponses: false,
+    });
+
+    await expect(kit.workspace.retrieve()).rejects.toThrow("HTTP 429");
+    expect(callCount).toBe(1);
   });
 });

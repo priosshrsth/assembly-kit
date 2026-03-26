@@ -1,5 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 
+import { assemblyApi } from "@assembly-js/node-sdk";
 import { AppConnectionsResource } from "src/modules/app-connections/resource";
 import { AppInstallsResource } from "src/modules/app-installs/resource";
 import { ClientsResource } from "src/modules/clients/resource";
@@ -28,7 +29,7 @@ import { TaskTemplatesResource } from "src/modules/task-templates/resource";
 import { TasksResource } from "src/modules/tasks/resource";
 import { WorkspaceResource } from "src/modules/workspace/resource";
 
-import { createAssemblyClient } from "./create-assembly-client";
+import { DEFAULT_RETRY } from "./options";
 import type { AssemblyKitOptions } from "./options";
 
 /**
@@ -105,43 +106,49 @@ export class AssemblyKit {
   constructor(options: AssemblyKitOptions) {
     this.currentToken = options.token;
 
-    const sdk = createAssemblyClient({
-      apiKey: options.apiKey,
-      retry: options.retry,
-      token: options.token,
-    });
-
+    const sdk = assemblyApi({ apiKey: options.apiKey, token: options.token });
     const validate = options.validateResponses ?? true;
+    const retry =
+      options.retry === false ? false : { ...DEFAULT_RETRY, ...options.retry };
 
-    this.appConnections = new AppConnectionsResource(sdk, validate);
-    this.appInstalls = new AppInstallsResource(sdk, validate);
-    this.clients = new ClientsResource(sdk, validate);
-    this.companies = new CompaniesResource(sdk, validate);
-    this.contractTemplates = new ContractTemplatesResource(sdk, validate);
-    this.contracts = new ContractsResource(sdk, validate);
-    this.customFieldOptions = new CustomFieldOptionsResource(sdk, validate);
-    this.customFields = new CustomFieldsResource(sdk, validate);
-    this.fileChannels = new FileChannelsResource(sdk, validate);
-    this.files = new FilesResource(sdk, validate);
-    this.formResponses = new FormResponsesResource(sdk, validate);
-    this.forms = new FormsResource(sdk, validate);
-    this.internalUsers = new InternalUsersResource(sdk, validate);
-    this.invoiceTemplates = new InvoiceTemplatesResource(sdk, validate);
-    this.invoices = new InvoicesResource(sdk, validate);
-    this.messageChannels = new MessageChannelsResource(sdk, validate);
-    this.messages = new MessagesResource(sdk, validate);
-    this.notes = new NotesResource(sdk, validate);
-    this.notifications = new NotificationsResource(sdk, validate);
-    this.payments = new PaymentsResource(sdk, validate);
-    this.prices = new PricesResource(sdk, validate);
-    this.products = new ProductsResource(sdk, validate);
+    this.appConnections = new AppConnectionsResource(sdk, validate, retry);
+    this.appInstalls = new AppInstallsResource(sdk, validate, retry);
+    this.clients = new ClientsResource(sdk, validate, retry);
+    this.companies = new CompaniesResource(sdk, validate, retry);
+    this.contractTemplates = new ContractTemplatesResource(
+      sdk,
+      validate,
+      retry
+    );
+    this.contracts = new ContractsResource(sdk, validate, retry);
+    this.customFieldOptions = new CustomFieldOptionsResource(
+      sdk,
+      validate,
+      retry
+    );
+    this.customFields = new CustomFieldsResource(sdk, validate, retry);
+    this.fileChannels = new FileChannelsResource(sdk, validate, retry);
+    this.files = new FilesResource(sdk, validate, retry);
+    this.formResponses = new FormResponsesResource(sdk, validate, retry);
+    this.forms = new FormsResource(sdk, validate, retry);
+    this.internalUsers = new InternalUsersResource(sdk, validate, retry);
+    this.invoiceTemplates = new InvoiceTemplatesResource(sdk, validate, retry);
+    this.invoices = new InvoicesResource(sdk, validate, retry);
+    this.messageChannels = new MessageChannelsResource(sdk, validate, retry);
+    this.messages = new MessagesResource(sdk, validate, retry);
+    this.notes = new NotesResource(sdk, validate, retry);
+    this.notifications = new NotificationsResource(sdk, validate, retry);
+    this.payments = new PaymentsResource(sdk, validate, retry);
+    this.prices = new PricesResource(sdk, validate, retry);
+    this.products = new ProductsResource(sdk, validate, retry);
     this.subscriptionTemplates = new SubscriptionTemplatesResource(
       sdk,
-      validate
+      validate,
+      retry
     );
-    this.subscriptions = new SubscriptionsResource(sdk, validate);
-    this.taskTemplates = new TaskTemplatesResource(sdk, validate);
-    this.tasks = new TasksResource(sdk, validate);
-    this.workspace = new WorkspaceResource(sdk, validate);
+    this.subscriptions = new SubscriptionsResource(sdk, validate, retry);
+    this.taskTemplates = new TaskTemplatesResource(sdk, validate, retry);
+    this.tasks = new TasksResource(sdk, validate, retry);
+    this.workspace = new WorkspaceResource(sdk, validate, retry);
   }
 }

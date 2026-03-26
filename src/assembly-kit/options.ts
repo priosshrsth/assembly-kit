@@ -17,16 +17,6 @@ export const DEFAULT_RETRY: RetryOptions = {
   retries: 3,
 };
 
-/** Options for `createAssemblyClient()`. */
-export interface LegacyClientOptions {
-  /** Assembly API key. */
-  apiKey: string;
-  /** Optional encrypted token for marketplace apps. */
-  token?: string;
-  /** Retry configuration, or `false` to disable retry entirely. */
-  retry?: RetryOptions | false;
-}
-
 /** Options for `new AssemblyKit()`. */
 export interface AssemblyKitOptions {
   /** Assembly API key. */
