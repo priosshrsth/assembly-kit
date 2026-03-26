@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+import type { CustomFieldOption } from "../custom-field-options";
+import { CustomFieldOptionSchema } from "../custom-field-options";
+
 // ─── Base ─────────────────────────────────────────────────────────────────────
 
 export type CustomFieldType =
@@ -32,7 +35,8 @@ export interface CustomField {
   key: string;
   name: string;
   object: "customField";
-  order?: number;
+  options?: CustomFieldOption[];
+  order: number;
   type: CustomFieldType;
 }
 
@@ -42,7 +46,8 @@ export const CustomFieldSchema: z.ZodType<CustomField> = z.object({
   key: z.string(),
   name: z.string(),
   object: z.literal("customField"),
-  order: z.number().optional(),
+  options: z.array(CustomFieldOptionSchema).optional(),
+  order: z.number(),
   type: CustomFieldTypeSchema,
 });
 
@@ -90,5 +95,5 @@ export interface ListCustomFieldResponse {
 
 export const ListCustomFieldResponseSchema: z.ZodType<ListCustomFieldResponse> =
   z.object({
-    data: z.array(CustomFieldSchema),
+    data: z.array(CustomFieldSchema).transform((v) => v || []),
   });

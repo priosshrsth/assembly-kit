@@ -1,50 +1,32 @@
-import { buildSearchParams } from "src/assembly-kit/build-search-params";
-import { parseResponse } from "src/assembly-kit/parse-response";
-import type { Transport } from "src/transport/http";
+import { BaseResource } from "src/assembly-kit/base-resource";
+import { paginate } from "src/pagination";
+import type { ListArgs } from "src/pagination";
 
-import type { TaskTemplateResponse, TaskTemplatesResponse } from "./schema";
 import {
   TaskTemplateResponseSchema,
   TaskTemplatesResponseSchema,
 } from "./schema";
+import type { TaskTemplate, TaskTemplatesResponse } from "./schema";
 
-export class TaskTemplatesResource {
-  readonly #transport: Transport;
-  readonly #validate: boolean;
-
-  constructor({
-    transport,
-    validateResponses,
-  }: {
-    transport: Transport;
-    validateResponses: boolean;
-  }) {
-    this.#transport = transport;
-    this.#validate = validateResponses;
-  }
-
+export class TaskTemplatesResource extends BaseResource {
   /** List task templates. */
-  async list(args?: {
-    nextToken?: string;
-    limit?: number;
-  }): Promise<TaskTemplatesResponse> {
-    const raw = await this.#transport.get<unknown>("v1/task-templates", {
-      searchParams: buildSearchParams(args),
-    });
-    return parseResponse({
-      data: raw,
-      schema: TaskTemplatesResponseSchema,
-      validate: this.#validate,
-    });
+  async list(args: ListArgs = {}): Promise<TaskTemplatesResponse> {
+    const raw = await this.sdk.listTaskTemplates(args);
+    return this.parse(TaskTemplatesResponseSchema, raw);
   }
 
-  /** Get a single task template by ID. */
-  async get(id: string): Promise<TaskTemplateResponse> {
-    const raw = await this.#transport.get<unknown>(`v1/task-templates/${id}`);
-    return parseResponse({
-      data: raw,
-      schema: TaskTemplateResponseSchema,
-      validate: this.#validate,
+  /** Retrieve a single task template by ID. */
+  async retrieve(id: string): Promise<TaskTemplate> {
+    const raw = await this.sdk.retrieveTaskTemplate({ id });
+    return this.parse(TaskTemplateResponseSchema, raw);
+  }
+
+  /** Iterate over all task templates, automatically paginating. Default limit per page: 500. */
+  listAll(
+    args: Omit<ListArgs, "nextToken"> = {}
+  ): AsyncGenerator<TaskTemplate> {
+    return paginate((listArgs) => this.list({ ...listArgs }), {
+      limit: args.limit ?? 500,
     });
   }
 }

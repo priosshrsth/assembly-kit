@@ -35,10 +35,12 @@ export type MessageResponse = Message;
 
 export interface MessagesResponse {
   data: Message[] | null;
+  nextToken?: string;
 }
 
 export const MessagesResponseSchema: z.ZodType<MessagesResponse> = z.object({
   data: z.array(MessageSchema).nullable(),
+  nextToken: z.string().optional(),
 });
 
 // ---------------------------------------------------------------------------

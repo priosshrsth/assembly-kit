@@ -1,55 +1,38 @@
-import { buildSearchParams } from "src/assembly-kit/build-search-params";
-import { parseResponse } from "src/assembly-kit/parse-response";
-import type { Transport } from "src/transport/http";
+import { BaseResource } from "src/assembly-kit/base-resource";
+import { paginate } from "src/pagination";
+import type { ListArgs } from "src/pagination";
 
-import type {
-  ContractTemplateResponse,
-  ContractTemplatesResponse,
-} from "./schema";
 import {
   ContractTemplateResponseSchema,
   ContractTemplatesResponseSchema,
 } from "./schema";
+import type { ContractTemplate, ContractTemplatesResponse } from "./schema";
 
-export class ContractTemplatesResource {
-  readonly #transport: Transport;
-  readonly #validate: boolean;
+export interface ListContractTemplatesArgs extends ListArgs {
+  name?: string;
+}
 
-  constructor({
-    transport,
-    validateResponses,
-  }: {
-    transport: Transport;
-    validateResponses: boolean;
-  }) {
-    this.#transport = transport;
-    this.#validate = validateResponses;
-  }
-
+export class ContractTemplatesResource extends BaseResource {
   /** List contract templates. */
-  async list(args?: {
-    nextToken?: string;
-    limit?: number;
-  }): Promise<ContractTemplatesResponse> {
-    const raw = await this.#transport.get<unknown>("v1/contract-templates", {
-      searchParams: buildSearchParams(args),
-    });
-    return parseResponse({
-      data: raw,
-      schema: ContractTemplatesResponseSchema,
-      validate: this.#validate,
-    });
+  async list(
+    args: ListContractTemplatesArgs = {}
+  ): Promise<ContractTemplatesResponse> {
+    const raw = await this.sdk.listContractTemplates(args);
+    return this.parse(ContractTemplatesResponseSchema, raw);
   }
 
-  /** Get a single contract template by ID. */
-  async get(id: string): Promise<ContractTemplateResponse> {
-    const raw = await this.#transport.get<unknown>(
-      `v1/contract-templates/${id}`
-    );
-    return parseResponse({
-      data: raw,
-      schema: ContractTemplateResponseSchema,
-      validate: this.#validate,
+  /** Retrieve a single contract template by ID. */
+  async retrieve(id: string): Promise<ContractTemplate> {
+    const raw = await this.sdk.retrieveContractTemplate({ id });
+    return this.parse(ContractTemplateResponseSchema, raw);
+  }
+
+  /** Iterate over all contract templates, automatically paginating. Default limit per page: 500. */
+  listAll(
+    args: Omit<ListContractTemplatesArgs, "nextToken"> = {}
+  ): AsyncGenerator<ContractTemplate> {
+    return paginate((listArgs) => this.list({ ...args, ...listArgs }), {
+      limit: args.limit ?? 500,
     });
   }
 }

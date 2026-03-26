@@ -1,47 +1,27 @@
-import { buildSearchParams } from "src/assembly-kit/build-search-params";
-import { parseResponse } from "src/assembly-kit/parse-response";
-import type { Transport } from "src/transport/http";
+import { BaseResource } from "src/assembly-kit/base-resource";
+import { paginate } from "src/pagination";
+import type { ListArgs } from "src/pagination";
 
-import type { ProductResponse, ProductsResponse } from "./schema";
 import { ProductResponseSchema, ProductsResponseSchema } from "./schema";
+import type { Product, ProductsResponse } from "./schema";
 
-export class ProductsResource {
-  readonly #transport: Transport;
-  readonly #validate: boolean;
-
-  constructor({
-    transport,
-    validateResponses,
-  }: {
-    transport: Transport;
-    validateResponses: boolean;
-  }) {
-    this.#transport = transport;
-    this.#validate = validateResponses;
-  }
-
+export class ProductsResource extends BaseResource {
   /** List products. */
-  async list(args?: {
-    nextToken?: string;
-    limit?: number;
-  }): Promise<ProductsResponse> {
-    const raw = await this.#transport.get<unknown>("v1/products", {
-      searchParams: buildSearchParams(args),
-    });
-    return parseResponse({
-      data: raw,
-      schema: ProductsResponseSchema,
-      validate: this.#validate,
-    });
+  async list(args: ListArgs = {}): Promise<ProductsResponse> {
+    const raw = await this.sdk.listProducts(args);
+    return this.parse(ProductsResponseSchema, raw);
   }
 
-  /** Get a single product by ID. */
-  async get(id: string): Promise<ProductResponse> {
-    const raw = await this.#transport.get<unknown>(`v1/products/${id}`);
-    return parseResponse({
-      data: raw,
-      schema: ProductResponseSchema,
-      validate: this.#validate,
+  /** Retrieve a single product by ID. */
+  async retrieve(id: string): Promise<Product> {
+    const raw = await this.sdk.retrieveProduct({ id });
+    return this.parse(ProductResponseSchema, raw);
+  }
+
+  /** Iterate over all products, automatically paginating. Default limit per page: 500. */
+  listAll(args: Omit<ListArgs, "nextToken"> = {}): AsyncGenerator<Product> {
+    return paginate((listArgs) => this.list({ ...listArgs }), {
+      limit: args.limit ?? 500,
     });
   }
 }

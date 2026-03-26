@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 
-import { isRetryableError } from "src/assembly-client/error-filter";
+import { isRetryableError } from "src/assembly-kit/error-filter";
 
 describe("isRetryableError", () => {
   it("returns true for status 429", () => {

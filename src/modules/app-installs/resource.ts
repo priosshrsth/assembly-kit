@@ -1,37 +1,18 @@
-import { buildSearchParams } from "src/assembly-kit/build-search-params";
-import { parseResponse } from "src/assembly-kit/parse-response";
-import type { Transport } from "src/transport/http";
+import { BaseResource } from "src/assembly-kit/base-resource";
 
-import type { AppInstallsResponse } from "./schema";
-import { AppInstallsResponseSchema } from "./schema";
+import { AppInstallResponseSchema, AppInstallsResponseSchema } from "./schema";
+import type { AppInstall, AppInstallsResponse } from "./schema";
 
-export class AppInstallsResource {
-  readonly #transport: Transport;
-  readonly #validate: boolean;
-
-  constructor({
-    transport,
-    validateResponses,
-  }: {
-    transport: Transport;
-    validateResponses: boolean;
-  }) {
-    this.#transport = transport;
-    this.#validate = validateResponses;
+export class AppInstallsResource extends BaseResource {
+  /** List all app installs. SDK returns a flat array; we wrap it for consistency. */
+  async list(): Promise<AppInstallsResponse> {
+    const raw = await this.sdk.listAppInstalls();
+    return this.parse(AppInstallsResponseSchema, { data: raw });
   }
 
-  /** List app installs. */
-  async list(args?: {
-    nextToken?: string;
-    limit?: number;
-  }): Promise<AppInstallsResponse> {
-    const raw = await this.#transport.get<unknown>("v1/app-installs", {
-      searchParams: buildSearchParams(args),
-    });
-    return parseResponse({
-      data: raw,
-      schema: AppInstallsResponseSchema,
-      validate: this.#validate,
-    });
+  /** Retrieve a single app install by ID. */
+  async retrieve(installId: string): Promise<AppInstall> {
+    const raw = await this.sdk.retrieveAppInstall({ installId });
+    return this.parse(AppInstallResponseSchema, raw);
   }
 }

@@ -1,66 +1,40 @@
-import { buildSearchParams } from "src/assembly-kit/build-search-params";
-import { parseResponse } from "src/assembly-kit/parse-response";
-import type { Transport } from "src/transport/http";
+import { BaseResource } from "src/assembly-kit/base-resource";
+import { paginate } from "src/pagination";
+import type { ListArgs } from "src/pagination";
 
-import type {
-  FileChannelCreateRequest,
-  FileChannelResponse,
-  FileChannelsResponse,
-} from "./schema";
 import {
   FileChannelResponseSchema,
   FileChannelsResponseSchema,
 } from "./schema";
+import type {
+  FileChannel,
+  FileChannelCreateRequest,
+  FileChannelsResponse,
+} from "./schema";
 
-export class FileChannelsResource {
-  readonly #transport: Transport;
-  readonly #validate: boolean;
-
-  constructor({
-    transport,
-    validateResponses,
-  }: {
-    transport: Transport;
-    validateResponses: boolean;
-  }) {
-    this.#transport = transport;
-    this.#validate = validateResponses;
+export class FileChannelsResource extends BaseResource {
+  /** Create a file channel. */
+  async create(body: FileChannelCreateRequest): Promise<FileChannel> {
+    const raw = await this.sdk.createFileChannel({ requestBody: body });
+    return this.parse(FileChannelResponseSchema, raw);
   }
 
-  /** List file channels with optional filters. */
-  async list(args?: {
-    clientId?: string;
-    companyId?: string;
-    nextToken?: string;
-    limit?: number;
-  }): Promise<FileChannelsResponse> {
-    const raw = await this.#transport.get<unknown>("v1/file-channels", {
-      searchParams: buildSearchParams(args),
-    });
-    return parseResponse({
-      data: raw,
-      schema: FileChannelsResponseSchema,
-      validate: this.#validate,
-    });
+  /** List file channels. */
+  async list(args: ListArgs = {}): Promise<FileChannelsResponse> {
+    const raw = await this.sdk.listFileChannels(args);
+    return this.parse(FileChannelsResponseSchema, raw);
   }
 
-  /** Get a single file channel by ID. */
-  async get(id: string): Promise<FileChannelResponse> {
-    const raw = await this.#transport.get<unknown>(`v1/file-channels/${id}`);
-    return parseResponse({
-      data: raw,
-      schema: FileChannelResponseSchema,
-      validate: this.#validate,
-    });
+  /** Retrieve a single file channel by ID. */
+  async retrieve(id: string): Promise<FileChannel> {
+    const raw = await this.sdk.retrieveFileChannel({ id });
+    return this.parse(FileChannelResponseSchema, raw);
   }
 
-  /** Create a new file channel. */
-  async create(body: FileChannelCreateRequest): Promise<FileChannelResponse> {
-    const raw = await this.#transport.post<unknown>("v1/file-channels", body);
-    return parseResponse({
-      data: raw,
-      schema: FileChannelResponseSchema,
-      validate: this.#validate,
+  /** Iterate over all file channels, automatically paginating. Default limit per page: 500. */
+  listAll(args: Omit<ListArgs, "nextToken"> = {}): AsyncGenerator<FileChannel> {
+    return paginate((listArgs) => this.list({ ...listArgs }), {
+      limit: args.limit ?? 500,
     });
   }
 }

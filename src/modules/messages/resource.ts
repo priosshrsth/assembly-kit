@@ -1,52 +1,31 @@
-import { buildSearchParams } from "src/assembly-kit/build-search-params";
-import { parseResponse } from "src/assembly-kit/parse-response";
-import type { Transport } from "src/transport/http";
+import { BaseResource } from "src/assembly-kit/base-resource";
+import { paginate } from "src/pagination";
+import type { ListArgs } from "src/pagination";
 
-import type {
-  MessageResponse,
-  MessagesResponse,
-  SendMessageRequest,
-} from "./schema";
 import { MessageResponseSchema, MessagesResponseSchema } from "./schema";
+import type { Message, MessagesResponse, SendMessageRequest } from "./schema";
 
-export class MessagesResource {
-  readonly #transport: Transport;
-  readonly #validate: boolean;
+export interface ListMessagesArgs extends ListArgs {
+  channelId: string;
+}
 
-  constructor({
-    transport,
-    validateResponses,
-  }: {
-    transport: Transport;
-    validateResponses: boolean;
-  }) {
-    this.#transport = transport;
-    this.#validate = validateResponses;
+export class MessagesResource extends BaseResource {
+  /** Send a message. */
+  async send(body: SendMessageRequest): Promise<Message> {
+    const raw = await this.sdk.sendMessage({ requestBody: body });
+    return this.parse(MessageResponseSchema, raw);
   }
 
-  /** List messages with optional filters. */
-  async list(args?: {
-    channelId?: string;
-    nextToken?: string;
-    limit?: number;
-  }): Promise<MessagesResponse> {
-    const raw = await this.#transport.get<unknown>("v1/messages", {
-      searchParams: buildSearchParams(args),
-    });
-    return parseResponse({
-      data: raw,
-      schema: MessagesResponseSchema,
-      validate: this.#validate,
-    });
+  /** List messages in a channel. */
+  async list(args: ListMessagesArgs): Promise<MessagesResponse> {
+    const raw = await this.sdk.listMessages(args);
+    return this.parse(MessagesResponseSchema, raw);
   }
 
-  /** Send a message to a channel. */
-  async send(body: SendMessageRequest): Promise<MessageResponse> {
-    const raw = await this.#transport.post<unknown>("v1/messages", body);
-    return parseResponse({
-      data: raw,
-      schema: MessageResponseSchema,
-      validate: this.#validate,
+  /** Iterate over all messages in a channel, automatically paginating. Default limit per page: 500. */
+  listAll(args: Omit<ListMessagesArgs, "nextToken">): AsyncGenerator<Message> {
+    return paginate((listArgs) => this.list({ ...args, ...listArgs }), {
+      limit: args.limit ?? 500,
     });
   }
 }

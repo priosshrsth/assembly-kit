@@ -46,9 +46,11 @@ export type AssemblyFileResponse = AssemblyFile;
 
 export interface AssemblyFilesResponse {
   data: AssemblyFile[] | null;
+  nextToken?: string;
 }
 
 export const AssemblyFilesResponseSchema: z.ZodType<AssemblyFilesResponse> =
   z.object({
     data: z.array(AssemblyFileSchema).nullable(),
+    nextToken: z.string().optional(),
   });

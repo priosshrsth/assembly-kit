@@ -111,10 +111,12 @@ export type InvoiceResponse = Invoice;
 
 export interface InvoicesResponse {
   data: Invoice[] | null;
+  nextToken?: string;
 }
 
 export const InvoicesResponseSchema: z.ZodType<InvoicesResponse> = z.object({
   data: z.array(InvoiceSchema).nullable(),
+  nextToken: z.string().optional(),
 });
 
 // ---------------------------------------------------------------------------

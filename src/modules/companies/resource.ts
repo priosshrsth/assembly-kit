@@ -1,88 +1,62 @@
-import { buildSearchParams } from "src/assembly-kit/build-search-params";
-import { parseResponse } from "src/assembly-kit/parse-response";
-import type { Transport } from "src/transport/http";
+import { BaseResource } from "src/assembly-kit/base-resource";
+import { paginate } from "src/pagination";
+import type { ListArgs } from "src/pagination";
 
+import { CompaniesResponseSchema, CompanyResponseSchema } from "./schema";
 import type {
   CompaniesResponse,
+  Company,
   CompanyCreateRequest,
-  CompanyResponse,
   CompanyUpdateRequest,
 } from "./schema";
-import { CompaniesResponseSchema, CompanyResponseSchema } from "./schema";
 
-export class CompaniesResource {
-  readonly #transport: Transport;
-  readonly #validate: boolean;
+export interface ListCompaniesArgs extends ListArgs {
+  isPlaceholder?: boolean;
+  name?: string;
+}
 
-  constructor({
-    transport,
-    validateResponses,
-  }: {
-    transport: Transport;
-    validateResponses: boolean;
-  }) {
-    this.#transport = transport;
-    this.#validate = validateResponses;
+export class CompaniesResource extends BaseResource {
+  /** Create a new company. */
+  async create(body: CompanyCreateRequest): Promise<Company> {
+    const raw = await this.sdk.createCompany({ requestBody: body as never });
+    return this.parse(CompanyResponseSchema, raw);
   }
 
   /** List companies with optional filters. */
-  async list(args?: {
-    name?: string;
-    isPlaceholder?: boolean;
-    nextToken?: string;
-    limit?: number;
-  }): Promise<CompaniesResponse> {
-    const raw = await this.#transport.get<unknown>("v1/companies", {
-      searchParams: buildSearchParams(args),
-    });
-    return parseResponse({
-      data: raw,
-      schema: CompaniesResponseSchema,
-      validate: this.#validate,
-    });
+  async list(args: ListCompaniesArgs = {}): Promise<CompaniesResponse> {
+    const raw = await this.sdk.listCompanies(args);
+    return this.parse(CompaniesResponseSchema, raw);
   }
 
-  /** Get a single company by ID. */
-  async get(id: string): Promise<CompanyResponse> {
-    const raw = await this.#transport.get<unknown>(`v1/companies/${id}`);
-    return parseResponse({
-      data: raw,
-      schema: CompanyResponseSchema,
-      validate: this.#validate,
-    });
+  /** Retrieve a single company by ID. */
+  async retrieve(id: string): Promise<Company> {
+    const raw = await this.sdk.retrieveCompany({ id });
+    return this.parse(CompanyResponseSchema, raw);
   }
 
-  /** Create a new company. */
-  async create(body: CompanyCreateRequest): Promise<CompanyResponse> {
-    const raw = await this.#transport.post<unknown>("v1/companies", body);
-    return parseResponse({
-      data: raw,
-      schema: CompanyResponseSchema,
-      validate: this.#validate,
-    });
-  }
-
-  /** Update an existing company. */
-  async update({
-    id,
-    body,
-  }: {
+  /** Update a company. */
+  async update(args: {
     id: string;
     body: CompanyUpdateRequest;
-  }): Promise<CompanyResponse> {
-    const raw = await this.#transport.patch<unknown>(
-      `v1/companies/${id}`,
-      body
-    );
-    return parseResponse({
-      data: raw,
-      schema: CompanyResponseSchema,
-      validate: this.#validate,
+  }): Promise<Company> {
+    const raw = await this.sdk.updateCompany({
+      id: args.id,
+      requestBody: args.body as never,
     });
+    return this.parse(CompanyResponseSchema, raw);
   }
 
   /** Delete a company by ID. */
   async delete(id: string): Promise<void> {
-    await this.#transport.delete(`v1/companies/${id}`);
+    await this.sdk.deleteCompany({ id });
+  }
+
+  /** Iterate over all companies, automatically paginating. Default limit per page: 10000. */
+  listAll(
+    args: Omit<ListCompaniesArgs, "nextToken"> = {}
+  ): AsyncGenerator<Company> {
+    return paginate((listArgs) => this.list({ ...args, ...listArgs }), {
+      limit: args.limit ?? 10_000,
+    });
   }
 }

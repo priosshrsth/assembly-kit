@@ -1,71 +1,42 @@
-import { buildSearchParams } from "src/assembly-kit/build-search-params";
-import { parseResponse } from "src/assembly-kit/parse-response";
-import type { Transport } from "src/transport/http";
+import { BaseResource } from "src/assembly-kit/base-resource";
 
-import type {
-  NotificationCreateRequest,
-  NotificationResponse,
-  NotificationsResponse,
-} from "./schema";
 import {
   NotificationResponseSchema,
   NotificationsResponseSchema,
 } from "./schema";
+import type {
+  Notification,
+  NotificationCreateRequest,
+  NotificationsResponse,
+} from "./schema";
 
-export class NotificationsResource {
-  readonly #transport: Transport;
-  readonly #validate: boolean;
-
-  constructor({
-    transport,
-    validateResponses,
-  }: {
-    transport: Transport;
-    validateResponses: boolean;
-  }) {
-    this.#transport = transport;
-    this.#validate = validateResponses;
-  }
-
-  /** List notifications with optional filters. */
-  async list(args?: {
-    recipientId?: string;
-    includeRead?: boolean;
-    recipientClientId?: string;
-    recipientInternalUserId?: string;
-  }): Promise<NotificationsResponse> {
-    const raw = await this.#transport.get<unknown>("v1/notifications", {
-      searchParams: buildSearchParams(args),
-    });
-    return parseResponse({
-      data: raw,
-      schema: NotificationsResponseSchema,
-      validate: this.#validate,
-    });
-  }
-
+export class NotificationsResource extends BaseResource {
   /** Create a new notification. */
-  async create(body: NotificationCreateRequest): Promise<NotificationResponse> {
-    const raw = await this.#transport.post<unknown>("v1/notifications", body);
-    return parseResponse({
-      data: raw,
-      schema: NotificationResponseSchema,
-      validate: this.#validate,
-    });
+  async create(body: NotificationCreateRequest): Promise<Notification> {
+    const raw = await this.sdk.createNotification({ requestBody: body });
+    return this.parse(NotificationResponseSchema, raw);
+  }
+
+  /** List notifications. */
+  async list(): Promise<NotificationsResponse> {
+    const raw = await this.sdk.listNotifications({});
+    return this.parse(NotificationsResponseSchema, raw);
   }
 
   /** Delete a notification by ID. */
   async delete(id: string): Promise<void> {
-    await this.#transport.delete(`v1/notifications/${id}`);
+    await this.sdk.deleteNotification({ id });
   }
 
   /** Mark a notification as read. */
-  async markRead(id: string): Promise<void> {
-    await this.#transport.post(`v1/notifications/${id}/read`);
+  async markRead(id: string): Promise<Notification> {
+    const raw = await this.sdk.markNotificationRead({ id });
+    return this.parse(NotificationResponseSchema, raw);
   }
 
   /** Mark a notification as unread. */
-  async markUnread(id: string): Promise<void> {
-    await this.#transport.post(`v1/notifications/${id}/unread`);
+  async markUnread(id: string): Promise<Notification> {
+    const raw = await this.sdk.markNotificationUnread({ id });
+    return this.parse(NotificationResponseSchema, raw);
   }
 }

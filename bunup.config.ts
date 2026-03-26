@@ -5,10 +5,10 @@ const bunupConfig = defineConfig({
   entry: [
     "src/index.ts",
     "src/schemas/index.ts",
-    "src/app-bridge/index.ts",
+    "src/assembly-kit/index.ts",
     "src/bridge-ui/index.ts",
-    "src/assembly-client/index.ts",
-    "src/react/index.ts",
+    "src/logger/index.ts",
+    "src/errors/index.ts",
   ],
   format: "esm",
   minify: true,

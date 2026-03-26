@@ -1,3 +1,5 @@
+import { AsyncLocalStorage } from "node:async_hooks";
+
 import { AssemblyInvalidTokenError } from "src/errors/invalid-token";
 import { AssemblyNoTokenError } from "src/errors/no-token";
 import { AssemblyUnauthorizedError } from "src/errors/unauthorized";
@@ -17,22 +19,31 @@ export interface InternalUserTokenPayload extends TokenPayload {
 }
 
 /**
- * Decrypts and validates an Assembly token, exposing the payload and
+ * Decrypts and validates an Assembly token, exposing the payload with
  * convenience getters for identity checks and compound key building.
+ *
+ * Use `AssemblyToken.run()` to store a request-scoped instance via
+ * `AsyncLocalStorage`, then retrieve it anywhere with `AssemblyToken.current()`.
+ * This is safe for Vercel fluid compute — no shared state across requests.
  *
  * @example
  * ```ts
- * const token = new AssemblyToken({ token: encryptedHex, apiKey });
- * token.workspaceId;   // always present
- * token.isClientUser;  // true if clientId + companyId present
+ * // Request-scoped (recommended for serverless)
+ * const t = AssemblyToken.new({ token: encryptedHex, apiKey });
+ * const same = AssemblyToken.new({ token: encryptedHex, apiKey }); // returns the same instance
  *
- * const key = token.buildCompoundKey({ apiKey });
+ * // Direct instantiation (always creates a new instance)
+ * const token = new AssemblyToken({ token: encryptedHex, apiKey });
  * ```
  *
  * @throws {AssemblyNoTokenError} If `token` is nullish or empty.
  * @throws {AssemblyInvalidTokenError} If decryption, JSON parsing, or schema validation fails.
  */
 export class AssemblyToken {
+  static readonly #store: AsyncLocalStorage<AssemblyToken> =
+    new AsyncLocalStorage<AssemblyToken>();
+
+  readonly currentToken: string;
   readonly payload: TokenPayload;
 
   constructor({ token, apiKey }: { token: unknown; apiKey: string }) {
@@ -46,7 +57,25 @@ export class AssemblyToken {
       });
     }
 
+    this.currentToken = token;
     this.payload = validatePayload(decrypt({ apiKey, token }));
+  }
+
+  /**
+   * Get or create a request-scoped `AssemblyToken` instance via `AsyncLocalStorage`.
+   * Returns the existing instance if one exists with the same token. If the token
+   * differs, a new instance is created and replaces the previous one.
+   *
+   * @returns The `AssemblyToken` instance for the current async context.
+   */
+  static new(options: { token: unknown; apiKey: string }): AssemblyToken {
+    const existing = AssemblyToken.#store.getStore();
+    if (existing && existing.currentToken === options.token) {
+      return existing;
+    }
+    const instance = new AssemblyToken(options);
+    AssemblyToken.#store.enterWith(instance);
+    return instance;
   }
 
   /** The workspace ID embedded in the token. Always present. */
@@ -94,8 +123,6 @@ export class AssemblyToken {
 
   /**
    * Assert that the token belongs to a client user and return the narrowed payload.
-   *
-   * @returns {ClientTokenPayload} The payload narrowed to `ClientTokenPayload`.
    * @throws {AssemblyUnauthorizedError} If the token does not represent a client user.
    */
   ensureIsClient(): ClientTokenPayload {
@@ -110,8 +137,6 @@ export class AssemblyToken {
 
   /**
    * Assert that the token belongs to an internal (team member) user and return the narrowed payload.
-   *
-   * @returns {InternalUserTokenPayload} The payload narrowed to `InternalUserTokenPayload`.
    * @throws {AssemblyUnauthorizedError} If the token does not represent an internal user.
    */
   ensureIsInternalUser(): InternalUserTokenPayload {

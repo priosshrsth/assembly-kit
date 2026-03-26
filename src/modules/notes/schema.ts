@@ -31,10 +31,12 @@ export type NoteResponse = Note;
 
 export interface NotesResponse {
   data: Note[] | null;
+  nextToken?: string;
 }
 
 export const NotesResponseSchema: z.ZodType<NotesResponse> = z.object({
   data: z.array(NoteSchema).nullable(),
+  nextToken: z.string().optional(),
 });
 
 // ─── Requests ─────────────────────────────────────────────────────────────────

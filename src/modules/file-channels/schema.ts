@@ -41,11 +41,13 @@ export type FileChannelResponse = FileChannel;
 
 export interface FileChannelsResponse {
   data: FileChannel[] | null;
+  nextToken?: string;
 }
 
 export const FileChannelsResponseSchema: z.ZodType<FileChannelsResponse> =
   z.object({
     data: z.array(FileChannelSchema).nullable(),
+    nextToken: z.string().optional(),
   });
 
 // ---------------------------------------------------------------------------

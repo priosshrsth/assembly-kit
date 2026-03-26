@@ -1,95 +1,72 @@
-import { buildSearchParams } from "src/assembly-kit/build-search-params";
-import { parseResponse } from "src/assembly-kit/parse-response";
-import type { Transport } from "src/transport/http";
+import { BaseResource } from "src/assembly-kit/base-resource";
+import { paginate } from "src/pagination";
+import type { ListArgs } from "src/pagination";
 
+import { ClientResponseSchema, ClientsResponseSchema } from "./schema";
 import type {
+  Client,
   ClientCreateRequest,
-  ClientResponse,
   ClientUpdateRequest,
   ClientsResponse,
 } from "./schema";
-import { ClientResponseSchema, ClientsResponseSchema } from "./schema";
 
-export class ClientsResource {
-  readonly #transport: Transport;
-  readonly #validate: boolean;
+export interface ListClientsArgs extends ListArgs {
+  companyId?: string;
+  email?: string;
+  familyName?: string;
+  givenName?: string;
+}
 
-  constructor({
-    transport,
-    validateResponses,
-  }: {
-    transport: Transport;
-    validateResponses: boolean;
-  }) {
-    this.#transport = transport;
-    this.#validate = validateResponses;
+export class ClientsResource extends BaseResource {
+  /** Create a new client. */
+  async create(args: {
+    body: ClientCreateRequest;
+    sendInvite?: boolean;
+  }): Promise<Client> {
+    const raw = await this.sdk.createClient({
+      requestBody: args.body as never,
+      sendInvite: args.sendInvite,
+    });
+    return this.parse(ClientResponseSchema, raw);
   }
 
   /** List clients with optional filters. */
-  async list(args?: {
-    companyId?: string;
-    email?: string;
-    givenName?: string;
-    familyName?: string;
-    nextToken?: string;
-    limit?: number;
-  }): Promise<ClientsResponse> {
-    const raw = await this.#transport.get<unknown>("v1/clients", {
-      searchParams: buildSearchParams(args),
-    });
-    return parseResponse({
-      data: raw,
-      schema: ClientsResponseSchema,
-      validate: this.#validate,
-    });
+  async list(args: ListClientsArgs = {}): Promise<ClientsResponse> {
+    const raw = await this.sdk.listClients(args);
+    return this.parse(ClientsResponseSchema, raw);
   }
 
-  /** Get a single client by ID. */
-  async get(id: string): Promise<ClientResponse> {
-    const raw = await this.#transport.get<unknown>(`v1/clients/${id}`);
-    return parseResponse({
-      data: raw,
-      schema: ClientResponseSchema,
-      validate: this.#validate,
-    });
+  /** Retrieve a single client by ID. */
+  async retrieve(id: string): Promise<Client> {
+    const raw = await this.sdk.retrieveClient({ id });
+    return this.parse(ClientResponseSchema, raw);
   }
 
-  /** Create a new client. */
-  async create({
-    body,
-    sendInvite,
-  }: {
-    body: ClientCreateRequest;
-    sendInvite?: boolean;
-  }): Promise<ClientResponse> {
-    const raw = await this.#transport.post<unknown>("v1/clients", body, {
-      searchParams: buildSearchParams({ sendInvite }),
-    });
-    return parseResponse({
-      data: raw,
-      schema: ClientResponseSchema,
-      validate: this.#validate,
-    });
-  }
-
-  /** Update an existing client. */
-  async update({
-    id,
-    body,
-  }: {
+  /** Update a client (PATCH — partial update). */
+  async update(args: {
     id: string;
     body: ClientUpdateRequest;
-  }): Promise<ClientResponse> {
-    const raw = await this.#transport.patch<unknown>(`v1/clients/${id}`, body);
-    return parseResponse({
-      data: raw,
-      schema: ClientResponseSchema,
-      validate: this.#validate,
+    sendInvite?: boolean;
+  }): Promise<Client> {
+    const raw = await this.sdk.updateClient({
+      id: args.id,
+      requestBody: args.body as never,
+      sendInvite: args.sendInvite,
     });
+    return this.parse(ClientResponseSchema, raw);
   }
 
   /** Delete a client by ID. */
   async delete(id: string): Promise<void> {
-    await this.#transport.delete(`v1/clients/${id}`);
+    await this.sdk.deleteClient({ id });
+  }
+
+  /** Iterate over all clients, automatically paginating. Default limit per page: 50000. */
+  listAll(
+    args: Omit<ListClientsArgs, "nextToken"> = {}
+  ): AsyncGenerator<Client> {
+    return paginate((listArgs) => this.list({ ...args, ...listArgs }), {
+      limit: args.limit ?? 50_000,
+    });
   }
 }

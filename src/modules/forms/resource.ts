@@ -1,47 +1,27 @@
-import { buildSearchParams } from "src/assembly-kit/build-search-params";
-import { parseResponse } from "src/assembly-kit/parse-response";
-import type { Transport } from "src/transport/http";
+import { BaseResource } from "src/assembly-kit/base-resource";
+import { paginate } from "src/pagination";
+import type { ListArgs } from "src/pagination";
 
-import type { FormDataResponse, FormsDataResponse } from "./schema";
 import { FormDataResponseSchema, FormsDataResponseSchema } from "./schema";
+import type { Form, FormsDataResponse } from "./schema";
 
-export class FormsResource {
-  readonly #transport: Transport;
-  readonly #validate: boolean;
-
-  constructor({
-    transport,
-    validateResponses,
-  }: {
-    transport: Transport;
-    validateResponses: boolean;
-  }) {
-    this.#transport = transport;
-    this.#validate = validateResponses;
-  }
-
+export class FormsResource extends BaseResource {
   /** List forms. */
-  async list(args?: {
-    nextToken?: string;
-    limit?: number;
-  }): Promise<FormsDataResponse> {
-    const raw = await this.#transport.get<unknown>("v1/forms", {
-      searchParams: buildSearchParams(args),
-    });
-    return parseResponse({
-      data: raw,
-      schema: FormsDataResponseSchema,
-      validate: this.#validate,
-    });
+  async list(args: ListArgs = {}): Promise<FormsDataResponse> {
+    const raw = await this.sdk.listForms(args);
+    return this.parse(FormsDataResponseSchema, raw);
   }
 
-  /** Get a single form by ID. */
-  async get(id: string): Promise<FormDataResponse> {
-    const raw = await this.#transport.get<unknown>(`v1/forms/${id}`);
-    return parseResponse({
-      data: raw,
-      schema: FormDataResponseSchema,
-      validate: this.#validate,
+  /** Retrieve a single form by ID. */
+  async retrieve(id: string): Promise<Form> {
+    const raw = await this.sdk.retrieveForm({ id });
+    return this.parse(FormDataResponseSchema, raw);
+  }
+
+  /** Iterate over all forms, automatically paginating. Default limit per page: 500. */
+  listAll(args: Omit<ListArgs, "nextToken"> = {}): AsyncGenerator<Form> {
+    return paginate((listArgs) => this.list({ ...listArgs }), {
+      limit: args.limit ?? 500,
     });
   }
 }

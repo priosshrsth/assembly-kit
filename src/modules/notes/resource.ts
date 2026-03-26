@@ -1,85 +1,57 @@
-import { buildSearchParams } from "src/assembly-kit/build-search-params";
-import { parseResponse } from "src/assembly-kit/parse-response";
-import type { Transport } from "src/transport/http";
+import { BaseResource } from "src/assembly-kit/base-resource";
+import { paginate } from "src/pagination";
+import type { ListArgs } from "src/pagination";
 
+import { NoteResponseSchema, NotesResponseSchema } from "./schema";
 import type {
+  Note,
   NoteCreateRequest,
-  NoteResponse,
   NoteUpdateRequest,
   NotesResponse,
 } from "./schema";
-import { NoteResponseSchema, NotesResponseSchema } from "./schema";
 
-export class NotesResource {
-  readonly #transport: Transport;
-  readonly #validate: boolean;
+export interface ListNotesArgs extends ListArgs {
+  clientId?: string;
+  companyId?: string;
+}
 
-  constructor({
-    transport,
-    validateResponses,
-  }: {
-    transport: Transport;
-    validateResponses: boolean;
-  }) {
-    this.#transport = transport;
-    this.#validate = validateResponses;
+export class NotesResource extends BaseResource {
+  /** Create a new note. */
+  async create(body: NoteCreateRequest): Promise<Note> {
+    const raw = await this.sdk.createNote({ requestBody: body as never });
+    return this.parse(NoteResponseSchema, raw);
   }
 
   /** List notes with optional filters. */
-  async list(args?: {
-    clientId?: string;
-    companyId?: string;
-    nextToken?: string;
-    limit?: number;
-  }): Promise<NotesResponse> {
-    const raw = await this.#transport.get<unknown>("v1/notes", {
-      searchParams: buildSearchParams(args),
-    });
-    return parseResponse({
-      data: raw,
-      schema: NotesResponseSchema,
-      validate: this.#validate,
-    });
+  async list(args: ListNotesArgs = {}): Promise<NotesResponse> {
+    const raw = await this.sdk.listNotes(args);
+    return this.parse(NotesResponseSchema, raw);
   }
 
-  /** Get a single note by ID. */
-  async get(id: string): Promise<NoteResponse> {
-    const raw = await this.#transport.get<unknown>(`v1/notes/${id}`);
-    return parseResponse({
-      data: raw,
-      schema: NoteResponseSchema,
-      validate: this.#validate,
-    });
+  /** Retrieve a single note by ID. */
+  async retrieve(id: string): Promise<Note> {
+    const raw = await this.sdk.retrieveNote({ id });
+    return this.parse(NoteResponseSchema, raw);
   }
 
-  /** Create a new note. */
-  async create(body: NoteCreateRequest): Promise<NoteResponse> {
-    const raw = await this.#transport.post<unknown>("v1/notes", body);
-    return parseResponse({
-      data: raw,
-      schema: NoteResponseSchema,
-      validate: this.#validate,
+  /** Update a note. */
+  async update(args: { id: string; body: NoteUpdateRequest }): Promise<Note> {
+    const raw = await this.sdk.updateNote({
+      id: args.id,
+      requestBody: args.body,
     });
-  }
-
-  /** Update an existing note. */
-  async update({
-    id,
-    body,
-  }: {
-    id: string;
-    body: NoteUpdateRequest;
-  }): Promise<NoteResponse> {
-    const raw = await this.#transport.patch<unknown>(`v1/notes/${id}`, body);
-    return parseResponse({
-      data: raw,
-      schema: NoteResponseSchema,
-      validate: this.#validate,
-    });
+    return this.parse(NoteResponseSchema, raw);
   }
 
   /** Delete a note by ID. */
   async delete(id: string): Promise<void> {
-    await this.#transport.delete(`v1/notes/${id}`);
+    await this.sdk.deleteNote({ id });
+  }
+
+  /** Iterate over all notes, automatically paginating. Default limit per page: 500. */
+  listAll(args: Omit<ListNotesArgs, "nextToken"> = {}): AsyncGenerator<Note> {
+    return paginate((listArgs) => this.list({ ...args, ...listArgs }), {
+      limit: args.limit ?? 500,
+    });
   }
 }

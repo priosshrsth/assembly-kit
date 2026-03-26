@@ -1,48 +1,31 @@
-import { buildSearchParams } from "src/assembly-kit/build-search-params";
-import { parseResponse } from "src/assembly-kit/parse-response";
-import type { Transport } from "src/transport/http";
+import { BaseResource } from "src/assembly-kit/base-resource";
+import { paginate } from "src/pagination";
+import type { ListArgs } from "src/pagination";
 
-import type { PriceResponse, PricesResponse } from "./schema";
 import { PriceResponseSchema, PricesResponseSchema } from "./schema";
+import type { Price, PricesResponse } from "./schema";
 
-export class PricesResource {
-  readonly #transport: Transport;
-  readonly #validate: boolean;
+export interface ListPricesArgs extends ListArgs {
+  productId?: string;
+}
 
-  constructor({
-    transport,
-    validateResponses,
-  }: {
-    transport: Transport;
-    validateResponses: boolean;
-  }) {
-    this.#transport = transport;
-    this.#validate = validateResponses;
+export class PricesResource extends BaseResource {
+  /** List prices with optional filters. */
+  async list(args: ListPricesArgs = {}): Promise<PricesResponse> {
+    const raw = await this.sdk.listPrices(args as never);
+    return this.parse(PricesResponseSchema, raw);
   }
 
-  /** List prices. */
-  async list(args?: {
-    productId?: string;
-    nextToken?: string;
-    limit?: number;
-  }): Promise<PricesResponse> {
-    const raw = await this.#transport.get<unknown>("v1/prices", {
-      searchParams: buildSearchParams(args),
-    });
-    return parseResponse({
-      data: raw,
-      schema: PricesResponseSchema,
-      validate: this.#validate,
-    });
+  /** Retrieve a single price by ID. */
+  async retrieve(id: string): Promise<Price> {
+    const raw = await this.sdk.retrievePrice({ id });
+    return this.parse(PriceResponseSchema, raw);
   }
 
-  /** Get a single price by ID. */
-  async get(id: string): Promise<PriceResponse> {
-    const raw = await this.#transport.get<unknown>(`v1/prices/${id}`);
-    return parseResponse({
-      data: raw,
-      schema: PriceResponseSchema,
-      validate: this.#validate,
+  /** Iterate over all prices, automatically paginating. Default limit per page: 500. */
+  listAll(args: Omit<ListPricesArgs, "nextToken"> = {}): AsyncGenerator<Price> {
+    return paginate((listArgs) => this.list({ ...args, ...listArgs }), {
+      limit: args.limit ?? 500,
     });
   }
 }

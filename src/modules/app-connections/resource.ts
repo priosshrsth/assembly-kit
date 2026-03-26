@@ -1,57 +1,35 @@
-import { buildSearchParams } from "src/assembly-kit/build-search-params";
-import { parseResponse } from "src/assembly-kit/parse-response";
-import type { Transport } from "src/transport/http";
+import { BaseResource } from "src/assembly-kit/base-resource";
 
-import type {
-  AppConnectionCreateRequest,
-  AppConnectionResponse,
-  AppConnectionsResponse,
-} from "./schema";
 import {
   AppConnectionResponseSchema,
   AppConnectionsResponseSchema,
 } from "./schema";
+import type {
+  AppConnection,
+  AppConnectionCreateRequest,
+  AppConnectionsResponse,
+} from "./schema";
 
-export class AppConnectionsResource {
-  readonly #transport: Transport;
-  readonly #validate: boolean;
-
-  constructor({
-    transport,
-    validateResponses,
-  }: {
-    transport: Transport;
-    validateResponses: boolean;
-  }) {
-    this.#transport = transport;
-    this.#validate = validateResponses;
+export class AppConnectionsResource extends BaseResource {
+  /** Create an app connection for a manual app install. */
+  async create(args: {
+    installId: string;
+    body: AppConnectionCreateRequest;
+  }): Promise<AppConnection> {
+    const raw = await this.sdk.createAppConnection({
+      installId: args.installId,
+      requestBody: args.body,
+    });
+    return this.parse(AppConnectionResponseSchema, raw);
   }
 
-  /** List app connections with optional filters. */
-  async list(args?: {
-    installId?: string;
-    nextToken?: string;
-    limit?: number;
+  /** List app connections for an install. */
+  async list(args: {
+    installId: string;
+    clientId?: string;
+    companyId?: string;
   }): Promise<AppConnectionsResponse> {
-    const raw = await this.#transport.get<unknown>("v1/app-connections", {
-      searchParams: buildSearchParams(args),
-    });
-    return parseResponse({
-      data: raw,
-      schema: AppConnectionsResponseSchema,
-      validate: this.#validate,
-    });
-  }
-
-  /** Create a new app connection. */
-  async create(
-    body: AppConnectionCreateRequest
-  ): Promise<AppConnectionResponse> {
-    const raw = await this.#transport.post<unknown>("v1/app-connections", body);
-    return parseResponse({
-      data: raw,
-      schema: AppConnectionResponseSchema,
-      validate: this.#validate,
-    });
+    const raw = await this.sdk.listAppConnections(args);
+    return this.parse(AppConnectionsResponseSchema, { data: raw });
   }
 }

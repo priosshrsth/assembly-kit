@@ -1,79 +1,55 @@
-import { buildSearchParams } from "src/assembly-kit/build-search-params";
-import { parseResponse } from "src/assembly-kit/parse-response";
-import type { Transport } from "src/transport/http";
+import { BaseResource } from "src/assembly-kit/base-resource";
+import { paginate } from "src/pagination";
+import type { ListArgs } from "src/pagination";
 
-import type {
-  SubscriptionCreateRequest,
-  SubscriptionResponse,
-  SubscriptionsResponse,
-} from "./schema";
 import {
   SubscriptionResponseSchema,
   SubscriptionsResponseSchema,
 } from "./schema";
+import type {
+  Subscription,
+  SubscriptionCreateRequest,
+  SubscriptionsResponse,
+} from "./schema";
 
-export class SubscriptionsResource {
-  readonly #transport: Transport;
-  readonly #validate: boolean;
+export interface ListSubscriptionsArgs extends ListArgs {
+  clientId?: string;
+  status?: string;
+}
 
-  constructor({
-    transport,
-    validateResponses,
-  }: {
-    transport: Transport;
-    validateResponses: boolean;
-  }) {
-    this.#transport = transport;
-    this.#validate = validateResponses;
+export class SubscriptionsResource extends BaseResource {
+  /** Create a subscription. */
+  async create(body: SubscriptionCreateRequest): Promise<Subscription> {
+    const raw = await this.sdk.createSubscription({
+      requestBody: body as never,
+    });
+    return this.parse(SubscriptionResponseSchema, raw);
   }
 
   /** List subscriptions with optional filters. */
-  async list(args?: {
-    clientId?: string;
-    companyId?: string;
-    status?: string;
-    nextToken?: string;
-    limit?: number;
-  }): Promise<SubscriptionsResponse> {
-    const raw = await this.#transport.get<unknown>("v1/subscriptions", {
-      searchParams: buildSearchParams(args),
-    });
-    return parseResponse({
-      data: raw,
-      schema: SubscriptionsResponseSchema,
-      validate: this.#validate,
-    });
+  async list(args: ListSubscriptionsArgs = {}): Promise<SubscriptionsResponse> {
+    const raw = await this.sdk.listSubscriptions(args as never);
+    return this.parse(SubscriptionsResponseSchema, raw);
   }
 
-  /** Get a single subscription by ID. */
-  async get(id: string): Promise<SubscriptionResponse> {
-    const raw = await this.#transport.get<unknown>(`v1/subscriptions/${id}`);
-    return parseResponse({
-      data: raw,
-      schema: SubscriptionResponseSchema,
-      validate: this.#validate,
-    });
+  /** Retrieve a single subscription by ID. */
+  async retrieve(id: string): Promise<Subscription> {
+    const raw = await this.sdk.retrieveSubscription({ id });
+    return this.parse(SubscriptionResponseSchema, raw);
   }
 
-  /** Create a new subscription. */
-  async create(body: SubscriptionCreateRequest): Promise<SubscriptionResponse> {
-    const raw = await this.#transport.post<unknown>("v1/subscriptions", body);
-    return parseResponse({
-      data: raw,
-      schema: SubscriptionResponseSchema,
-      validate: this.#validate,
-    });
+  /** Cancel a subscription. */
+  async cancel(id: string): Promise<Subscription> {
+    const raw = await this.sdk.cancelSubscription({ id });
+    return this.parse(SubscriptionResponseSchema, raw);
   }
 
-  /** Cancel a subscription by ID. */
-  async cancel(id: string): Promise<SubscriptionResponse> {
-    const raw = await this.#transport.post<unknown>(
-      `v1/subscriptions/${id}/cancel`
-    );
-    return parseResponse({
-      data: raw,
-      schema: SubscriptionResponseSchema,
-      validate: this.#validate,
+  /** Iterate over all subscriptions, automatically paginating. Default limit per page: 500. */
+  listAll(
+    args: Omit<ListSubscriptionsArgs, "nextToken"> = {}
+  ): AsyncGenerator<Subscription> {
+    return paginate((listArgs) => this.list({ ...args, ...listArgs }), {
+      limit: args.limit ?? 500,
     });
   }
 }

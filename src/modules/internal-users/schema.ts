@@ -39,9 +39,11 @@ export type InternalUserResponse = InternalUser;
 
 export interface InternalUsersResponse {
   data: InternalUser[];
+  nextToken?: string;
 }
 
 export const InternalUsersResponseSchema: z.ZodType<InternalUsersResponse> =
   z.object({
     data: z.array(InternalUserSchema),
+    nextToken: z.string().optional(),
   });

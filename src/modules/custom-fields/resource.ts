@@ -1,33 +1,14 @@
-import { parseResponse } from "src/assembly-kit/parse-response";
-import type { Transport } from "src/transport/http";
+import { BaseResource } from "src/assembly-kit/base-resource";
 
-import type { ListCustomFieldResponse } from "./schema";
 import { ListCustomFieldResponseSchema } from "./schema";
+import type { ListCustomFieldResponse } from "./schema";
 
-export class CustomFieldsResource {
-  readonly #transport: Transport;
-  readonly #validate: boolean;
-
-  constructor({
-    transport,
-    validateResponses,
-  }: {
-    transport: Transport;
-    validateResponses: boolean;
-  }) {
-    this.#transport = transport;
-    this.#validate = validateResponses;
-  }
-
-  /** List custom fields for a given entity type. */
-  async list(entityType: string): Promise<ListCustomFieldResponse> {
-    const raw = await this.#transport.get<unknown>("v1/custom-fields", {
-      searchParams: { entityType },
-    });
-    return parseResponse({
-      data: raw,
-      schema: ListCustomFieldResponseSchema,
-      validate: this.#validate,
-    });
+export class CustomFieldsResource extends BaseResource {
+  /** List custom fields with optional entity type filter. */
+  async list(
+    args: { entityType?: string } = {}
+  ): Promise<ListCustomFieldResponse> {
+    const raw = await this.sdk.listCustomFields(args);
+    return this.parse(ListCustomFieldResponseSchema, raw);
   }
 }
