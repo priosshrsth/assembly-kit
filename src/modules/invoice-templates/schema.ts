@@ -30,9 +30,11 @@ export type InvoiceTemplateResponse = InvoiceTemplate;
 
 export interface InvoiceTemplatesResponse {
   data: InvoiceTemplate[] | null;
+  nextToken?: string;
 }
 
 export const InvoiceTemplatesResponseSchema: z.ZodType<InvoiceTemplatesResponse> =
   z.object({
     data: z.array(InvoiceTemplateSchema).nullable(),
+    nextToken: z.string().optional(),
   });

@@ -1,50 +1,32 @@
-import { buildSearchParams } from "src/assembly-kit/build-search-params";
-import { parseResponse } from "src/assembly-kit/parse-response";
-import type { Transport } from "src/transport/http";
+import { BaseResource } from "src/assembly-kit/base-resource";
+import { paginate } from "src/pagination";
+import type { ListArgs } from "src/pagination";
 
-import type { InternalUserResponse, InternalUsersResponse } from "./schema";
 import {
   InternalUserResponseSchema,
   InternalUsersResponseSchema,
 } from "./schema";
+import type { InternalUser, InternalUsersResponse } from "./schema";
 
-export class InternalUsersResource {
-  readonly #transport: Transport;
-  readonly #validate: boolean;
-
-  constructor({
-    transport,
-    validateResponses,
-  }: {
-    transport: Transport;
-    validateResponses: boolean;
-  }) {
-    this.#transport = transport;
-    this.#validate = validateResponses;
+export class InternalUsersResource extends BaseResource {
+  /** List internal users. */
+  async list(args: ListArgs = {}): Promise<InternalUsersResponse> {
+    const raw = await this.sdk.listInternalUsers(args);
+    return this.parse(InternalUsersResponseSchema, raw);
   }
 
-  /** List internal users with optional pagination. */
-  async list(args?: {
-    nextToken?: string;
-    limit?: number;
-  }): Promise<InternalUsersResponse> {
-    const raw = await this.#transport.get<unknown>("v1/internal-users", {
-      searchParams: buildSearchParams(args),
-    });
-    return parseResponse({
-      data: raw,
-      schema: InternalUsersResponseSchema,
-      validate: this.#validate,
-    });
+  /** Retrieve a single internal user by ID. */
+  async retrieve(id: string): Promise<InternalUser> {
+    const raw = await this.sdk.retrieveInternalUser({ id });
+    return this.parse(InternalUserResponseSchema, raw);
   }
 
-  /** Get a single internal user by ID. */
-  async get(id: string): Promise<InternalUserResponse> {
-    const raw = await this.#transport.get<unknown>(`v1/internal-users/${id}`);
-    return parseResponse({
-      data: raw,
-      schema: InternalUserResponseSchema,
-      validate: this.#validate,
+  /** Iterate over all internal users, automatically paginating. Default limit per page: 500. */
+  listAll(
+    args: Omit<ListArgs, "nextToken"> = {}
+  ): AsyncGenerator<InternalUser> {
+    return paginate((listArgs) => this.list({ ...listArgs }), {
+      limit: args.limit ?? 500,
     });
   }
 }

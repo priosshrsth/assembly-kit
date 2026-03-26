@@ -39,11 +39,13 @@ export type SubscriptionResponse = Subscription;
 
 export interface SubscriptionsResponse {
   data: Subscription[] | null;
+  nextToken?: string;
 }
 
 export const SubscriptionsResponseSchema: z.ZodType<SubscriptionsResponse> =
   z.object({
     data: z.array(SubscriptionSchema).nullable(),
+    nextToken: z.string().optional(),
   });
 
 // ---------------------------------------------------------------------------

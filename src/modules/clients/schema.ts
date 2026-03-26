@@ -51,11 +51,13 @@ export const ClientResponseSchema: z.ZodType<Client> = ClientSchema;
 export type ClientResponse = Client;
 
 export interface ClientsResponse {
-  data: Client[] | null;
+  data: Client[];
+  nextToken?: string;
 }
 
 export const ClientsResponseSchema: z.ZodType<ClientsResponse> = z.object({
-  data: z.array(ClientSchema).nullable(),
+  data: z.array(ClientSchema).transform((v) => v || []),
+  nextToken: z.string().optional(),
 });
 
 // ─── Requests ─────────────────────────────────────────────────────────────────

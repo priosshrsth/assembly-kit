@@ -1,38 +1,26 @@
-import { buildSearchParams } from "src/assembly-kit/build-search-params";
-import { parseResponse } from "src/assembly-kit/parse-response";
-import type { Transport } from "src/transport/http";
+import { BaseResource } from "src/assembly-kit/base-resource";
+import { paginate } from "src/pagination";
+import type { ListArgs } from "src/pagination";
 
-import type { SubscriptionTemplatesResponse } from "./schema";
 import { SubscriptionTemplatesResponseSchema } from "./schema";
+import type {
+  SubscriptionTemplate,
+  SubscriptionTemplatesResponse,
+} from "./schema";
 
-export class SubscriptionTemplatesResource {
-  readonly #transport: Transport;
-  readonly #validate: boolean;
-
-  constructor({
-    transport,
-    validateResponses,
-  }: {
-    transport: Transport;
-    validateResponses: boolean;
-  }) {
-    this.#transport = transport;
-    this.#validate = validateResponses;
+export class SubscriptionTemplatesResource extends BaseResource {
+  /** List subscription templates. */
+  async list(args: ListArgs = {}): Promise<SubscriptionTemplatesResponse> {
+    const raw = await this.sdk.listSubscriptionTemplates(args);
+    return this.parse(SubscriptionTemplatesResponseSchema, raw);
   }
 
-  /** List subscription templates. */
-  async list(args?: {
-    nextToken?: string;
-    limit?: number;
-  }): Promise<SubscriptionTemplatesResponse> {
-    const raw = await this.#transport.get<unknown>(
-      "v1/subscription-templates",
-      { searchParams: buildSearchParams(args) }
-    );
-    return parseResponse({
-      data: raw,
-      schema: SubscriptionTemplatesResponseSchema,
-      validate: this.#validate,
+  /** Iterate over all subscription templates, automatically paginating. Default limit per page: 500. */
+  listAll(
+    args: Omit<ListArgs, "nextToken"> = {}
+  ): AsyncGenerator<SubscriptionTemplate> {
+    return paginate((listArgs) => this.list({ ...listArgs }), {
+      limit: args.limit ?? 500,
     });
   }
 }

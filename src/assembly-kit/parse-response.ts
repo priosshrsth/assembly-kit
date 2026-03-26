@@ -2,25 +2,16 @@ import { AssemblyResponseParseError } from "src/errors/response-parse";
 import type { z } from "zod";
 
 /**
- * Optionally validates `data` against a Zod schema.
- * When `validate` is false, returns `data` as-is (cast to `T`).
- * When `validate` is true and parsing fails, throws `AssemblyResponseParseError`.
+ * Validates `data` against a Zod schema.
+ * Throws `AssemblyResponseParseError` on validation failure.
  */
-export const parseResponse = <T>({
-  schema,
-  data,
-  validate,
-}: {
-  schema: z.ZodType<T>;
-  data: unknown;
-  validate: boolean;
-}): T => {
-  if (!validate) {
-    return data as T;
-  }
+export const parseResponse = <T>(schema: z.ZodType<T>, data: unknown): T => {
   const result = schema.safeParse(data);
   if (!result.success) {
-    throw new AssemblyResponseParseError({ cause: result.error });
+    throw new AssemblyResponseParseError({
+      cause: result.error,
+      details: data,
+    });
   }
   return result.data;
 };

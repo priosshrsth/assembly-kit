@@ -31,8 +31,10 @@ export type PriceResponse = Price;
 
 export interface PricesResponse {
   data: Price[] | null;
+  nextToken?: string;
 }
 
 export const PricesResponseSchema: z.ZodType<PricesResponse> = z.object({
   data: z.array(PriceSchema).nullable(),
+  nextToken: z.string().optional(),
 });

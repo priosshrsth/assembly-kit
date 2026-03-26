@@ -31,9 +31,11 @@ export type SubscriptionTemplateResponse = SubscriptionTemplate;
 
 export interface SubscriptionTemplatesResponse {
   data: SubscriptionTemplate[] | null;
+  nextToken?: string;
 }
 
 export const SubscriptionTemplatesResponseSchema: z.ZodType<SubscriptionTemplatesResponse> =
   z.object({
     data: z.array(SubscriptionTemplateSchema).nullable(),
+    nextToken: z.string().optional(),
   });

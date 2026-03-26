@@ -31,8 +31,10 @@ export type FormDataResponse = Form;
 
 export interface FormsDataResponse {
   data: Form[] | null;
+  nextToken?: string;
 }
 
 export const FormsDataResponseSchema: z.ZodType<FormsDataResponse> = z.object({
   data: z.array(FormSchema).nullable(),
+  nextToken: z.string().optional(),
 });

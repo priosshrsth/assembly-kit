@@ -33,8 +33,10 @@ export type PaymentResponse = Payment;
 
 export interface PaymentsResponse {
   data: Payment[] | null;
+  nextToken?: string;
 }
 
 export const PaymentsResponseSchema: z.ZodType<PaymentsResponse> = z.object({
   data: z.array(PaymentSchema).nullable(),
+  nextToken: z.string().optional(),
 });

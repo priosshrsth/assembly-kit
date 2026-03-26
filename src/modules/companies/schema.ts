@@ -37,10 +37,12 @@ export type CompanyResponse = Company;
 
 export interface CompaniesResponse {
   data: Company[] | null;
+  nextToken?: string;
 }
 
 export const CompaniesResponseSchema: z.ZodType<CompaniesResponse> = z.object({
   data: z.array(CompanySchema).nullable(),
+  nextToken: z.string().optional(),
 });
 
 // ─── Requests ─────────────────────────────────────────────────────────────────

@@ -1,64 +1,40 @@
-import { buildSearchParams } from "src/assembly-kit/build-search-params";
-import { parseResponse } from "src/assembly-kit/parse-response";
-import type { Transport } from "src/transport/http";
+import { BaseResource } from "src/assembly-kit/base-resource";
+import { paginate } from "src/pagination";
+import type { ListArgs } from "src/pagination";
 
-import type {
-  InvoiceCreateRequest,
-  InvoiceResponse,
-  InvoicesResponse,
-} from "./schema";
 import { InvoiceResponseSchema, InvoicesResponseSchema } from "./schema";
+import type { Invoice, InvoiceCreateRequest, InvoicesResponse } from "./schema";
 
-export class InvoicesResource {
-  readonly #transport: Transport;
-  readonly #validate: boolean;
+export interface ListInvoicesArgs extends ListArgs {
+  clientId?: string;
+  status?: string;
+}
 
-  constructor({
-    transport,
-    validateResponses,
-  }: {
-    transport: Transport;
-    validateResponses: boolean;
-  }) {
-    this.#transport = transport;
-    this.#validate = validateResponses;
+export class InvoicesResource extends BaseResource {
+  /** Create an invoice. */
+  async create(body: InvoiceCreateRequest): Promise<Invoice> {
+    const raw = await this.sdk.createInvoice({ requestBody: body as never });
+    return this.parse(InvoiceResponseSchema, raw);
   }
 
   /** List invoices with optional filters. */
-  async list(args?: {
-    clientId?: string;
-    companyId?: string;
-    status?: string;
-    nextToken?: string;
-    limit?: number;
-  }): Promise<InvoicesResponse> {
-    const raw = await this.#transport.get<unknown>("v1/invoices", {
-      searchParams: buildSearchParams(args),
-    });
-    return parseResponse({
-      data: raw,
-      schema: InvoicesResponseSchema,
-      validate: this.#validate,
-    });
+  async list(args: ListInvoicesArgs = {}): Promise<InvoicesResponse> {
+    const raw = await this.sdk.listInvoices(args);
+    return this.parse(InvoicesResponseSchema, raw);
   }
 
-  /** Get a single invoice by ID. */
-  async get(id: string): Promise<InvoiceResponse> {
-    const raw = await this.#transport.get<unknown>(`v1/invoices/${id}`);
-    return parseResponse({
-      data: raw,
-      schema: InvoiceResponseSchema,
-      validate: this.#validate,
-    });
+  /** Retrieve a single invoice by ID. */
+  async retrieve(id: string): Promise<Invoice> {
+    const raw = await this.sdk.retrieveInvoice({ id });
+    return this.parse(InvoiceResponseSchema, raw);
   }
 
-  /** Create a new invoice. */
-  async create(body: InvoiceCreateRequest): Promise<InvoiceResponse> {
-    const raw = await this.#transport.post<unknown>("v1/invoices", body);
-    return parseResponse({
-      data: raw,
-      schema: InvoiceResponseSchema,
-      validate: this.#validate,
+  /** Iterate over all invoices, automatically paginating. Default limit per page: 500. */
+  listAll(
+    args: Omit<ListInvoicesArgs, "nextToken"> = {}
+  ): AsyncGenerator<Invoice> {
+    return paginate((listArgs) => this.list({ ...args, ...listArgs }), {
+      limit: args.limit ?? 500,
     });
   }
 }

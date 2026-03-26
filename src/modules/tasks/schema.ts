@@ -49,10 +49,12 @@ export type TaskResponse = Task;
 
 export interface TasksResponse {
   data: Task[] | null;
+  nextToken?: string;
 }
 
 export const TasksResponseSchema: z.ZodType<TasksResponse> = z.object({
   data: z.array(TaskSchema).nullable(),
+  nextToken: z.string().optional(),
 });
 
 // ---------------------------------------------------------------------------

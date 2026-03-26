@@ -326,3 +326,51 @@ describe("createToken", () => {
     ).toThrow(AssemblyInvalidTokenError);
   });
 });
+
+// ─── AsyncLocalStorage (.new / .current) ─────────────────────────────────────
+
+/** Run `fn` in a fresh async context (isolated from the test runner's context). */
+const inFreshContext = (fn: () => void): Promise<void> =>
+  // eslint-disable-next-line eslint-plugin-promise/avoid-new
+  new Promise<void>((resolve) => {
+    setTimeout(() => {
+      fn();
+      resolve();
+    }, 0);
+  });
+
+describe("AssemblyToken.new", () => {
+  const opts = { apiKey: TEST_API_KEY, token: CLIENT_TOKEN };
+
+  it("returns the same instance on repeated .new() calls", async () => {
+    await inFreshContext(() => {
+      const first = AssemblyToken.new(opts);
+      const second = AssemblyToken.new(opts);
+      expect(second).toBe(first);
+    });
+  });
+
+  it("creates a new instance when token changes", async () => {
+    await inFreshContext(() => {
+      const first = AssemblyToken.new(opts);
+      const second = AssemblyToken.new({
+        apiKey: TEST_API_KEY,
+        token: INTERNAL_USER_TOKEN,
+      });
+      expect(second).not.toBe(first);
+    });
+  });
+
+  it("different async contexts get different instances", async () => {
+    const instances: AssemblyToken[] = [];
+    await Promise.all([
+      inFreshContext(() => {
+        instances.push(AssemblyToken.new(opts));
+      }),
+      inFreshContext(() => {
+        instances.push(AssemblyToken.new(opts));
+      }),
+    ]);
+    expect(instances[0]).not.toBe(instances[1]);
+  });
+});

@@ -32,9 +32,11 @@ export type TaskTemplateResponse = TaskTemplate;
 
 export interface TaskTemplatesResponse {
   data: TaskTemplate[] | null;
+  nextToken?: string;
 }
 
 export const TaskTemplatesResponseSchema: z.ZodType<TaskTemplatesResponse> =
   z.object({
     data: z.array(TaskTemplateSchema).nullable(),
+    nextToken: z.string().optional(),
   });

@@ -31,8 +31,10 @@ export type ProductResponse = Product;
 
 export interface ProductsResponse {
   data: Product[] | null;
+  nextToken?: string;
 }
 
 export const ProductsResponseSchema: z.ZodType<ProductsResponse> = z.object({
   data: z.array(ProductSchema).nullable(),
+  nextToken: z.string().optional(),
 });

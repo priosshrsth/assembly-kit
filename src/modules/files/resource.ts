@@ -1,95 +1,59 @@
-import { buildSearchParams } from "src/assembly-kit/build-search-params";
-import { parseResponse } from "src/assembly-kit/parse-response";
-import type { Transport } from "src/transport/http";
+import { BaseResource } from "src/assembly-kit/base-resource";
+import { paginate } from "src/pagination";
+import type { ListArgs } from "src/pagination";
 
-import type { AssemblyFileResponse, AssemblyFilesResponse } from "./schema";
 import {
   AssemblyFileResponseSchema,
   AssemblyFilesResponseSchema,
 } from "./schema";
+import type { AssemblyFile, AssemblyFilesResponse } from "./schema";
 
-export class FilesResource {
-  readonly #transport: Transport;
-  readonly #validate: boolean;
+export interface ListFilesArgs extends ListArgs {
+  channelId: string;
+  path?: string;
+}
 
-  constructor({
-    transport,
-    validateResponses,
-  }: {
-    transport: Transport;
-    validateResponses: boolean;
-  }) {
-    this.#transport = transport;
-    this.#validate = validateResponses;
-  }
-
-  /** List files with optional filters. */
-  async list(args?: {
-    channelId?: string;
-    path?: string;
-    nextToken?: string;
-    limit?: number;
-  }): Promise<AssemblyFilesResponse> {
-    const raw = await this.#transport.get<unknown>("v1/files", {
-      searchParams: buildSearchParams(args),
-    });
-    return parseResponse({
-      data: raw,
-      schema: AssemblyFilesResponseSchema,
-      validate: this.#validate,
-    });
-  }
-
-  /** Get a single file by ID. */
-  async get(id: string): Promise<AssemblyFileResponse> {
-    const raw = await this.#transport.get<unknown>(`v1/files/${id}`);
-    return parseResponse({
-      data: raw,
-      schema: AssemblyFileResponseSchema,
-      validate: this.#validate,
-    });
-  }
-
+export class FilesResource extends BaseResource {
   /** Create a file, folder, or link. */
-  async create({
-    fileType,
-    body,
-  }: {
-    fileType: "file" | "folder" | "link";
-    body: unknown;
-  }): Promise<AssemblyFileResponse> {
-    const raw = await this.#transport.post<unknown>(
-      `v1/files/${fileType}`,
-      body
-    );
-    return parseResponse({
-      data: raw,
-      schema: AssemblyFileResponseSchema,
-      validate: this.#validate,
+  async create(args: {
+    fileType: string;
+    body: {
+      channelId: string;
+      clientPermissions?: "read_write" | "read_only";
+      linkUrl?: string;
+      path: string;
+    };
+  }): Promise<AssemblyFile> {
+    const raw = await this.sdk.createFile({
+      fileType: args.fileType,
+      requestBody: args.body,
     });
+    return this.parse(AssemblyFileResponseSchema, raw);
+  }
+
+  /** List files in a channel. */
+  async list(args: ListFilesArgs): Promise<AssemblyFilesResponse> {
+    const raw = await this.sdk.listFiles(args);
+    return this.parse(AssemblyFilesResponseSchema, raw);
+  }
+
+  /** Retrieve a single file by ID. */
+  async retrieve(id: string): Promise<AssemblyFile> {
+    const raw = await this.sdk.retrieveFile({ id });
+    return this.parse(AssemblyFileResponseSchema, raw);
   }
 
   /** Delete a file by ID. */
   async delete(id: string): Promise<void> {
-    await this.#transport.delete(`v1/files/${id}`);
+    await this.sdk.deleteFile({ id });
   }
 
-  /** Update folder client permissions. */
-  async updatePermissions({
-    id,
-    body,
-  }: {
-    id: string;
-    body: unknown;
-  }): Promise<AssemblyFileResponse> {
-    const raw = await this.#transport.put<unknown>(
-      `v1/files/${id}/permissions`,
-      body
-    );
-    return parseResponse({
-      data: raw,
-      schema: AssemblyFileResponseSchema,
-      validate: this.#validate,
+  /** Iterate over all files in a channel, automatically paginating. Default limit per page: 500. */
+  listAll(
+    args: Omit<ListFilesArgs, "nextToken">
+  ): AsyncGenerator<AssemblyFile> {
+    return paginate((listArgs) => this.list({ ...args, ...listArgs }), {
+      limit: args.limit ?? 500,
     });
   }
 }

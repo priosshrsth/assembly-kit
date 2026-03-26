@@ -7,14 +7,14 @@ export interface CustomFieldOption {
   id: string;
   key: string;
   label: string;
-  object: "customFieldOption";
+  color: string;
 }
 
 export const CustomFieldOptionSchema: z.ZodType<CustomFieldOption> = z.object({
+  color: z.string(),
   id: z.string(),
   key: z.string(),
   label: z.string(),
-  object: z.literal("customFieldOption"),
 });
 
 // ─── Response ─────────────────────────────────────────────────────────────────

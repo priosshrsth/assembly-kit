@@ -49,14 +49,12 @@ export const validatePayload = (decrypted: string): TokenPayload => {
 /**
  * Encrypt a token payload into a hex-encoded AES-128-CBC token string.
  *
- * This is the inverse of `new AssemblyToken()`. The payload is validated against
- * `TokenPayloadSchema`, serialized to JSON, and encrypted using the API key
- * with the same HMAC-SHA256 key derivation and AES-128-CBC cipher.
+ * The payload is validated against `TokenPayloadSchema`, serialized to JSON,
+ * and encrypted using the API key with HMAC-SHA256 key derivation and AES-128-CBC.
  *
- * @param {object} options - Token creation options.
- * @param {TokenPayload} options.payload - The token payload to encrypt.
- * @param {string} options.apiKey - The workspace/app API key used to derive the encryption key.
- * @returns {string} The hex-encoded encrypted token string.
+ * @param options.payload - The token payload to encrypt.
+ * @param options.apiKey - The workspace/app API key used to derive the encryption key.
+ * @returns The hex-encoded encrypted token string.
  * @throws {AssemblyInvalidTokenError} If the payload fails schema validation.
  */
 export const createToken = ({

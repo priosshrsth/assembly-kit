@@ -1,56 +1,32 @@
+import { AssemblyBridge } from "@assembly-js/app-bridge";
+import type { CtaConfig } from "@assembly-js/app-bridge";
 import { useEffect } from "react";
-import { isAllowedOrigin } from "src/app-bridge/is-allowed-origin";
-import { sendToParent } from "src/app-bridge/send";
-import type {
-  BridgeOpts,
-  CtaConfig,
-  SecondaryCtaPayload,
-} from "src/app-bridge/types";
 
 /**
  * Registers a secondary CTA button in the Assembly dashboard header.
  *
- * Sends a `header.secondaryCta` postMessage to the parent frame and listens
- * for click events. When the component unmounts or the page unloads, the
- * slot is automatically cleared.
+ * Uses `AssemblyBridge.header.setSecondaryCta()` to set the button and
+ * automatically clears it on unmount or page unload.
  *
- * @param {CtaConfig} cta - Label, icon, and click handler for the secondary CTA.
- * @param {BridgeOpts} [opts] - Optional portal URL and visibility toggle.
+ * @param cta - Label, icon, and click handler for the secondary CTA.
+ * @param show - Whether the CTA is visible. Defaults to true.
  */
-export const useSecondaryCta = (cta: CtaConfig, opts?: BridgeOpts): void => {
-  const { portalUrl, show = true } = opts ?? {};
-
+export const useSecondaryCta = (cta: CtaConfig, show = true): void => {
   useEffect(() => {
-    const payload: SecondaryCtaPayload = {
-      icon: show ? cta.icon : undefined,
-      label: show ? cta.label : undefined,
-      onClick: show ? "header.secondaryCta.onClick" : undefined,
-      type: "header.secondaryCta",
-    };
-
-    sendToParent(payload, portalUrl);
-
-    const handleMessage = (event: MessageEvent): void => {
-      if (
-        isAllowedOrigin(event.origin, portalUrl) &&
-        event.data.type === "header.secondaryCta.onClick" &&
-        typeof event.data.id === "string" &&
-        cta.onClick
-      ) {
-        cta.onClick();
-      }
-    };
-
-    addEventListener("message", handleMessage);
+    if (show) {
+      AssemblyBridge.header.setSecondaryCta(cta);
+    } else {
+      AssemblyBridge.header.setSecondaryCta(null);
+    }
 
     return () => {
-      removeEventListener("message", handleMessage);
+      AssemblyBridge.header.setSecondaryCta(null);
     };
-  }, [cta, portalUrl, show]);
+  }, [cta, show]);
 
   useEffect(() => {
     const handleUnload = (): void => {
-      sendToParent({ type: "header.secondaryCta" }, portalUrl);
+      AssemblyBridge.header.setSecondaryCta(null);
     };
 
     addEventListener("beforeunload", handleUnload);
@@ -58,5 +34,5 @@ export const useSecondaryCta = (cta: CtaConfig, opts?: BridgeOpts): void => {
     return () => {
       removeEventListener("beforeunload", handleUnload);
     };
-  }, [portalUrl]);
+  }, []);
 };

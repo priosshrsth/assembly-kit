@@ -30,9 +30,11 @@ export type ContractTemplateResponse = ContractTemplate;
 
 export interface ContractTemplatesResponse {
   data: ContractTemplate[] | null;
+  nextToken?: string;
 }
 
 export const ContractTemplatesResponseSchema: z.ZodType<ContractTemplatesResponse> =
   z.object({
     data: z.array(ContractTemplateSchema).nullable(),
+    nextToken: z.string().optional(),
   });

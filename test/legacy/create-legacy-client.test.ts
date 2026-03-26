@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it, mock } from "bun:test";
 
-import { createAssemblyClient } from "src/assembly-client/create-assembly-client";
+import { createAssemblyClient } from "src/assembly-kit/create-assembly-client";
 
 /** Mimics the SDK's ApiError shape (extends Error with a status property). */
 class MockApiError extends Error {
@@ -8,7 +8,7 @@ class MockApiError extends Error {
   constructor(message: string, status: number) {
     super(message);
     this.status = status;
-    this.name = "ApiError";
+    this.name = "MockApiError";
   }
 }
 

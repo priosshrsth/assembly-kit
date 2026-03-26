@@ -43,11 +43,13 @@ export type MessageChannelResponse = MessageChannel;
 
 export interface MessageChannelsResponse {
   data: MessageChannel[] | null;
+  nextToken?: string;
 }
 
 export const MessageChannelsResponseSchema: z.ZodType<MessageChannelsResponse> =
   z.object({
     data: z.array(MessageChannelSchema).nullable(),
+    nextToken: z.string().optional(),
   });
 
 // ---------------------------------------------------------------------------
