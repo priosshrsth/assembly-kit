@@ -44,7 +44,7 @@ const padPayload = (
 // ---------------------------------------------------------------------------
 // 1. Client token: { workspaceId, clientId, companyId }
 // ---------------------------------------------------------------------------
-export const CLIENT_TOKEN = encryptPayload(TEST_API_KEY, {
+export const CLIENT_TOKEN: string = encryptPayload(TEST_API_KEY, {
   clientId: TEST_CLIENT_ID,
   companyId: TEST_COMPANY_ID,
   workspaceId: TEST_WORKSPACE_ID,
@@ -53,7 +53,7 @@ export const CLIENT_TOKEN = encryptPayload(TEST_API_KEY, {
 // ---------------------------------------------------------------------------
 // 2. Internal user token: { workspaceId, internalUserId }
 // ---------------------------------------------------------------------------
-export const INTERNAL_USER_TOKEN = encryptPayload(TEST_API_KEY, {
+export const INTERNAL_USER_TOKEN: string = encryptPayload(TEST_API_KEY, {
   internalUserId: TEST_INTERNAL_USER_ID,
   workspaceId: TEST_WORKSPACE_ID,
 });
@@ -61,7 +61,7 @@ export const INTERNAL_USER_TOKEN = encryptPayload(TEST_API_KEY, {
 // ---------------------------------------------------------------------------
 // 3. Token with tokenId: { workspaceId, clientId, companyId, tokenId }
 // ---------------------------------------------------------------------------
-export const TOKEN_WITH_TOKEN_ID = encryptPayload(TEST_API_KEY, {
+export const TOKEN_WITH_TOKEN_ID: string = encryptPayload(TEST_API_KEY, {
   clientId: TEST_CLIENT_ID,
   companyId: TEST_COMPANY_ID,
   tokenId: TEST_TOKEN_ID,
@@ -71,7 +71,7 @@ export const TOKEN_WITH_TOKEN_ID = encryptPayload(TEST_API_KEY, {
 // ---------------------------------------------------------------------------
 // 4. Token with baseUrl: { workspaceId, internalUserId, baseUrl }
 // ---------------------------------------------------------------------------
-export const TOKEN_WITH_BASE_URL = encryptPayload(TEST_API_KEY, {
+export const TOKEN_WITH_BASE_URL: string = encryptPayload(TEST_API_KEY, {
   baseUrl: TEST_BASE_URL,
   internalUserId: TEST_INTERNAL_USER_ID,
   workspaceId: TEST_WORKSPACE_ID,
@@ -92,7 +92,7 @@ const blockAlignedJson = JSON.stringify(blockAlignedPadded);
 if (Buffer.byteLength(blockAlignedJson, "utf8") % 16 !== 0) {
   throw new Error("Block-aligned fixture is not a multiple of 16 bytes");
 }
-export const BLOCK_ALIGNED_TOKEN = encryptTokenString({
+export const BLOCK_ALIGNED_TOKEN: string = encryptTokenString({
   apiKey: TEST_API_KEY,
   plaintext: blockAlignedJson,
 });
