@@ -19,7 +19,7 @@ export interface Task {
   object: "task";
   status?: TaskStatus;
   title?: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export const TaskSchema: z.ZodType<Task> = z.object({
@@ -33,7 +33,7 @@ export const TaskSchema: z.ZodType<Task> = z.object({
   object: z.literal("task"),
   status: TaskStatusSchema.optional(),
   title: z.string().optional(),
-  updatedAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime().optional(),
 });
 
 // ---------------------------------------------------------------------------

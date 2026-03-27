@@ -10,7 +10,7 @@ export interface Product {
   id: string;
   name?: string;
   object: "product";
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export const ProductSchema: z.ZodType<Product> = z.object({
@@ -19,7 +19,7 @@ export const ProductSchema: z.ZodType<Product> = z.object({
   id: z.string(),
   name: z.string().optional(),
   object: z.literal("product"),
-  updatedAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime().optional(),
 });
 
 // ---------------------------------------------------------------------------

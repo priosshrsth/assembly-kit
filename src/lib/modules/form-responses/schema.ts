@@ -12,7 +12,7 @@ export interface FormResponse {
   id: string;
   object: "formResponse";
   status?: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export const FormResponseSchema: z.ZodType<FormResponse> = z.object({
@@ -23,7 +23,7 @@ export const FormResponseSchema: z.ZodType<FormResponse> = z.object({
   id: z.string(),
   object: z.literal("formResponse"),
   status: z.string().optional(),
-  updatedAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime().optional(),
 });
 
 // ---------------------------------------------------------------------------

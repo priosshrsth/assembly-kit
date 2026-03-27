@@ -20,7 +20,7 @@ export interface AppConnection {
   membershipType?: MembershipType;
   object: "appConnection";
   type?: AppConnectionType;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export const AppConnectionSchema: z.ZodType<AppConnection> = z.object({
@@ -33,7 +33,7 @@ export const AppConnectionSchema: z.ZodType<AppConnection> = z.object({
   membershipType: MembershipTypeSchema.optional(),
   object: z.literal("appConnection"),
   type: AppConnectionTypeSchema.optional(),
-  updatedAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime().optional(),
 });
 
 // ---------------------------------------------------------------------------

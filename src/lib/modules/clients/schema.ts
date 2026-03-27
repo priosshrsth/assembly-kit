@@ -20,7 +20,7 @@ export interface Client<TCustomFields extends Record<string, unknown> = Record<s
   lastLoginDate: string | null;
   object: "client";
   status: "active" | "invited" | "notInvited";
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export const ClientSchema: z.ZodType<Client> = z.object({
@@ -40,7 +40,7 @@ export const ClientSchema: z.ZodType<Client> = z.object({
   lastLoginDate: z.string().nullable(),
   object: z.literal("client"),
   status: z.enum(["active", "invited", "notInvited"]),
-  updatedAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime().optional(),
 });
 
 // ─── Response ─────────────────────────────────────────────────────────────────

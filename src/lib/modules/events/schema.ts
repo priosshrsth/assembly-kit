@@ -34,7 +34,7 @@ export interface AuditLogEvent {
   ip?: string | null;
   object: "auditLog";
   source: EventSource;
-  updatedAt: string;
+  updatedAt?: string;
   userAgent?: string | null;
 }
 
@@ -51,7 +51,7 @@ export const AuditLogEventSchema: z.ZodType<AuditLogEvent> = z.object({
   ip: z.string().nullable().optional(),
   object: z.literal("auditLog"),
   source: EventSourceSchema,
-  updatedAt: z.string(),
+  updatedAt: z.string().optional(),
   userAgent: z.string().nullable().optional(),
 });
 

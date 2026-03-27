@@ -13,7 +13,7 @@ export interface Company<TCustomFields extends Record<string, unknown> = Record<
   isPlaceholder: boolean;
   name: string;
   object: "company";
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export const CompanySchema: z.ZodType<Company> = z.object({
@@ -25,7 +25,7 @@ export const CompanySchema: z.ZodType<Company> = z.object({
   isPlaceholder: z.boolean(),
   name: z.string(),
   object: z.literal("company"),
-  updatedAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime().optional(),
 });
 
 // ─── Response ─────────────────────────────────────────────────────────────────

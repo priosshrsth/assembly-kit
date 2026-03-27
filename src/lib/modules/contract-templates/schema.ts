@@ -9,7 +9,7 @@ export interface ContractTemplate {
   id: string;
   name?: string;
   object: "contractTemplate";
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export const ContractTemplateSchema: z.ZodType<ContractTemplate> = z.object({
@@ -17,7 +17,7 @@ export const ContractTemplateSchema: z.ZodType<ContractTemplate> = z.object({
   id: z.string(),
   name: z.string().optional(),
   object: z.literal("contractTemplate"),
-  updatedAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime().optional(),
 });
 
 // ---------------------------------------------------------------------------

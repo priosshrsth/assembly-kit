@@ -12,7 +12,7 @@ export interface Message {
   object: "message";
   senderId?: string;
   text?: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export const MessageSchema: z.ZodType<Message> = z.object({
@@ -23,7 +23,7 @@ export const MessageSchema: z.ZodType<Message> = z.object({
   object: z.literal("message"),
   senderId: z.string().optional(),
   text: z.string().optional(),
-  updatedAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime().optional(),
 });
 
 // ---------------------------------------------------------------------------
