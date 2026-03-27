@@ -1,6 +1,6 @@
 {
   "name": "@anitshrsth/assembly-kit",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Alternative SDK for the Assembly platform",
   "homepage": "https://github.com/priosshrsth/assembly-kit#readme",
   "bugs": {
@@ -16,13 +16,34 @@
   ],
   "type": "module",
   "exports": {
-    ".": "./dist/index.mjs",
-    "./bridge-ui": "./dist/bridge-ui/index.mjs",
-    "./client": "./dist/client/index.mjs",
-    "./errors": "./dist/errors/index.mjs",
-    "./logger": "./dist/logger/index.mjs",
-    "./schemas": "./dist/schemas/index.mjs",
-    "./token": "./dist/token/index.mjs",
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    },
+    "./bridge-ui": {
+      "types": "./dist/bridge-ui/index.d.mts",
+      "import": "./dist/bridge-ui/index.mjs"
+    },
+    "./client": {
+      "types": "./dist/client/index.d.mts",
+      "import": "./dist/client/index.mjs"
+    },
+    "./errors": {
+      "types": "./dist/errors/index.d.mts",
+      "import": "./dist/errors/index.mjs"
+    },
+    "./logger": {
+      "types": "./dist/logger/index.d.mts",
+      "import": "./dist/logger/index.mjs"
+    },
+    "./schemas": {
+      "types": "./dist/schemas/index.d.mts",
+      "import": "./dist/schemas/index.mjs"
+    },
+    "./token": {
+      "types": "./dist/token/index.d.mts",
+      "import": "./dist/token/index.mjs"
+    },
     "./package.json": "./package.json"
   },
   "publishConfig": {
