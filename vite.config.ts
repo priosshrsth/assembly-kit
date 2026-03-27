@@ -21,22 +21,8 @@ export default defineConfig({
       "src/schemas/index.ts",
       "src/token/index.ts",
     ],
-    exports: {
-      customExports(exports) {
-        const result: Record<string, unknown> = {};
-        for (const [key, value] of Object.entries(exports)) {
-          if (typeof value === "string" && value.endsWith(".mjs")) {
-            result[key] = {
-              types: value.replace(/\.mjs$/, ".d.mts"),
-              import: value,
-            };
-          } else {
-            result[key] = value;
-          }
-        }
-        return result;
-      },
-    },
+    unbundle: true,
+    exports: true,
     sourcemap: true,
     dts: {
       tsgo: true,
