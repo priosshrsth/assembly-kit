@@ -23,7 +23,6 @@
     "./logger": "./dist/logger/index.mjs",
     "./schemas": "./dist/schemas/index.mjs",
     "./token": "./dist/token/index.mjs",
-    "./dist/*": "./dist/*",
     "./package.json": "./package.json"
   },
   "publishConfig": {
