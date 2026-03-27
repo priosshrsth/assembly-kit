@@ -9,32 +9,31 @@ export interface PaginatedResponse<T> {
 }
 
 /**
- * Async generator that abstracts cursor-based pagination.
- * Calls `fn` repeatedly, yielding each item from `data`,
- * and follows `nextToken` until exhausted.
- *
- * @yields Each item from the paginated response data arrays.
+ * Collects all items from a cursor-paginated endpoint into a single array.
+ * Calls `fn` repeatedly, following `nextToken` until exhausted.
  */
-// Generator functions cannot use arrow syntax; named expression satisfies func-style.
-export const paginate = async function* paginate<T>(
+export async function paginate<T>(
   fn: (args: ListArgs) => Promise<PaginatedResponse<T>>,
   initialArgs: ListArgs = {},
-): AsyncGenerator<T> {
+): Promise<T[]> {
+  const results: T[] = [];
   let args: ListArgs = initialArgs;
 
-  for (;;) {
+  let hasMore: boolean = true;
+
+  while (hasMore) {
     const { data, nextToken } = await fn(args);
 
-    if (!data || data.length === 0) {
-      return;
+    if (data && data.length > 0) {
+      results.push(...data);
     }
 
-    yield* data;
-
-    if (!nextToken) {
-      return;
+    if (nextToken) {
+      args = { ...initialArgs, nextToken };
+    } else {
+      hasMore = false;
     }
-
-    args = { ...initialArgs, nextToken };
   }
-};
+
+  return results;
+}

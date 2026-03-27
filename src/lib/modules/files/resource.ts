@@ -46,7 +46,7 @@ export class FilesResource extends BaseResource {
   }
 
   /** Iterate over all files in a channel, automatically paginating. Default limit per page: 500. */
-  listAll(args: Omit<ListFilesArgs, "nextToken">): AsyncGenerator<AssemblyFile> {
+  async listAll(args: Omit<ListFilesArgs, "nextToken">): Promise<AssemblyFile[]> {
     return paginate((listArgs) => this.list({ ...args, ...listArgs }), {
       limit: args.limit ?? 500,
     });

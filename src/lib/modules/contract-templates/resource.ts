@@ -23,9 +23,9 @@ export class ContractTemplatesResource extends BaseResource {
   }
 
   /** Iterate over all contract templates, automatically paginating. Default limit per page: 500. */
-  listAll(
+  async listAll(
     args: Omit<ListContractTemplatesArgs, "nextToken"> = {},
-  ): AsyncGenerator<ContractTemplate> {
+  ): Promise<ContractTemplate[]> {
     return paginate((listArgs) => this.list({ ...args, ...listArgs }), {
       limit: args.limit ?? 500,
     });

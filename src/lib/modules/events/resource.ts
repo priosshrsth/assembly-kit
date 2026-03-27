@@ -47,7 +47,7 @@ export class EventsResource extends BaseResource {
   }
 
   /** Iterate over all audit log events, automatically paginating. Default limit per page: 100. */
-  listAll(args: Omit<ListEventsArgs, "nextToken"> = {}): AsyncGenerator<AuditLogEvent> {
+  async listAll(args: Omit<ListEventsArgs, "nextToken"> = {}): Promise<AuditLogEvent[]> {
     return paginate((listArgs) => this.list({ ...args, ...listArgs }), {
       limit: args.limit ?? 100,
     });

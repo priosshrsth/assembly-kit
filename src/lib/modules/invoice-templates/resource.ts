@@ -13,7 +13,7 @@ export class InvoiceTemplatesResource extends BaseResource {
   }
 
   /** Iterate over all invoice templates, automatically paginating. Default limit per page: 500. */
-  listAll(args: Omit<ListArgs, "nextToken"> = {}): AsyncGenerator<InvoiceTemplate> {
+  async listAll(args: Omit<ListArgs, "nextToken"> = {}): Promise<InvoiceTemplate[]> {
     return paginate((listArgs) => this.list({ ...listArgs }), {
       limit: args.limit ?? 500,
     });

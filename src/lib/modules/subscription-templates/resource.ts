@@ -13,7 +13,7 @@ export class SubscriptionTemplatesResource extends BaseResource {
   }
 
   /** Iterate over all subscription templates, automatically paginating. Default limit per page: 500. */
-  listAll(args: Omit<ListArgs, "nextToken"> = {}): AsyncGenerator<SubscriptionTemplate> {
+  async listAll(args: Omit<ListArgs, "nextToken"> = {}): Promise<SubscriptionTemplate[]> {
     return paginate((listArgs) => this.list({ ...listArgs }), {
       limit: args.limit ?? 500,
     });

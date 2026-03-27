@@ -19,7 +19,7 @@ export class InternalUsersResource extends BaseResource {
   }
 
   /** Iterate over all internal users, automatically paginating. Default limit per page: 500. */
-  listAll(args: Omit<ListArgs, "nextToken"> = {}): AsyncGenerator<InternalUser> {
+  async listAll(args: Omit<ListArgs, "nextToken"> = {}): Promise<InternalUser[]> {
     return paginate((listArgs) => this.list({ ...listArgs }), {
       limit: args.limit ?? 500,
     });

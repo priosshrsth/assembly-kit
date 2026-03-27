@@ -18,7 +18,7 @@ export class PaymentsResource extends BaseResource {
   }
 
   /** Iterate over all payments, automatically paginating. Default limit per page: 500. */
-  listAll(args: Omit<ListPaymentsArgs, "nextToken"> = {}): AsyncGenerator<Payment> {
+  async listAll(args: Omit<ListPaymentsArgs, "nextToken"> = {}): Promise<Payment[]> {
     return paginate((listArgs) => this.list({ ...args, ...listArgs }), {
       limit: args.limit ?? 500,
     });

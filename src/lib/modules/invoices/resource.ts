@@ -30,7 +30,7 @@ export class InvoicesResource extends BaseResource {
   }
 
   /** Iterate over all invoices, automatically paginating. Default limit per page: 500. */
-  listAll(args: Omit<ListInvoicesArgs, "nextToken"> = {}): AsyncGenerator<Invoice> {
+  async listAll(args: Omit<ListInvoicesArgs, "nextToken"> = {}): Promise<Invoice[]> {
     return paginate((listArgs) => this.list({ ...args, ...listArgs }), {
       limit: args.limit ?? 500,
     });

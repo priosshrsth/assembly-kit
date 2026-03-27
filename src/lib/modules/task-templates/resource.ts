@@ -19,7 +19,7 @@ export class TaskTemplatesResource extends BaseResource {
   }
 
   /** Iterate over all task templates, automatically paginating. Default limit per page: 500. */
-  listAll(args: Omit<ListArgs, "nextToken"> = {}): AsyncGenerator<TaskTemplate> {
+  async listAll(args: Omit<ListArgs, "nextToken"> = {}): Promise<TaskTemplate[]> {
     return paginate((listArgs) => this.list({ ...listArgs }), {
       limit: args.limit ?? 500,
     });

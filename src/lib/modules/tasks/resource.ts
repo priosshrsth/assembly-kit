@@ -45,7 +45,7 @@ export class TasksResource extends BaseResource {
   }
 
   /** Iterate over all tasks, automatically paginating. Default limit per page: 500. */
-  listAll(args: Omit<ListTasksArgs, "nextToken"> = {}): AsyncGenerator<Task> {
+  async listAll(args: Omit<ListTasksArgs, "nextToken"> = {}): Promise<Task[]> {
     return paginate((listArgs) => this.list({ ...args, ...listArgs }), {
       limit: args.limit ?? 500,
     });

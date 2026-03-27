@@ -49,7 +49,7 @@ export class CompaniesResource extends BaseResource {
   }
 
   /** Iterate over all companies, automatically paginating. Default limit per page: 10000. */
-  listAll(args: Omit<ListCompaniesArgs, "nextToken"> = {}): AsyncGenerator<Company> {
+  async listAll(args: Omit<ListCompaniesArgs, "nextToken"> = {}): Promise<Company[]> {
     return paginate((listArgs) => this.list({ ...args, ...listArgs }), {
       limit: args.limit ?? 10_000,
     });

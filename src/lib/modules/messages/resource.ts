@@ -23,7 +23,7 @@ export class MessagesResource extends BaseResource {
   }
 
   /** Iterate over all messages in a channel, automatically paginating. Default limit per page: 500. */
-  listAll(args: Omit<ListMessagesArgs, "nextToken">): AsyncGenerator<Message> {
+  async listAll(args: Omit<ListMessagesArgs, "nextToken">): Promise<Message[]> {
     return paginate((listArgs) => this.list({ ...args, ...listArgs }), {
       limit: args.limit ?? 500,
     });

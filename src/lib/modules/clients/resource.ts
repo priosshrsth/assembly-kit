@@ -54,7 +54,7 @@ export class ClientsResource extends BaseResource {
   }
 
   /** Iterate over all clients, automatically paginating. Default limit per page: 50000. */
-  listAll(args: Omit<ListClientsArgs, "nextToken"> = {}): AsyncGenerator<Client> {
+  async listAll(args: Omit<ListClientsArgs, "nextToken"> = {}): Promise<Client[]> {
     return paginate((listArgs) => this.list({ ...args, ...listArgs }), {
       limit: args.limit ?? 50_000,
     });

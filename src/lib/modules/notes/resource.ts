@@ -44,7 +44,7 @@ export class NotesResource extends BaseResource {
   }
 
   /** Iterate over all notes, automatically paginating. Default limit per page: 500. */
-  listAll(args: Omit<ListNotesArgs, "nextToken"> = {}): AsyncGenerator<Note> {
+  async listAll(args: Omit<ListNotesArgs, "nextToken"> = {}): Promise<Note[]> {
     return paginate((listArgs) => this.list({ ...args, ...listArgs }), {
       limit: args.limit ?? 500,
     });

@@ -23,7 +23,7 @@ export class PricesResource extends BaseResource {
   }
 
   /** Iterate over all prices, automatically paginating. Default limit per page: 500. */
-  listAll(args: Omit<ListPricesArgs, "nextToken"> = {}): AsyncGenerator<Price> {
+  async listAll(args: Omit<ListPricesArgs, "nextToken"> = {}): Promise<Price[]> {
     return paginate((listArgs) => this.list({ ...args, ...listArgs }), {
       limit: args.limit ?? 500,
     });

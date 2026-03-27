@@ -19,7 +19,7 @@ export class ProductsResource extends BaseResource {
   }
 
   /** Iterate over all products, automatically paginating. Default limit per page: 500. */
-  listAll(args: Omit<ListArgs, "nextToken"> = {}): AsyncGenerator<Product> {
+  async listAll(args: Omit<ListArgs, "nextToken"> = {}): Promise<Product[]> {
     return paginate((listArgs) => this.list({ ...listArgs }), {
       limit: args.limit ?? 500,
     });

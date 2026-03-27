@@ -19,7 +19,7 @@ export class FormsResource extends BaseResource {
   }
 
   /** Iterate over all forms, automatically paginating. Default limit per page: 500. */
-  listAll(args: Omit<ListArgs, "nextToken"> = {}): AsyncGenerator<Form> {
+  async listAll(args: Omit<ListArgs, "nextToken"> = {}): Promise<Form[]> {
     return paginate((listArgs) => this.list({ ...listArgs }), {
       limit: args.limit ?? 500,
     });

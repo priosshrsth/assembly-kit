@@ -38,7 +38,7 @@ export class SubscriptionsResource extends BaseResource {
   }
 
   /** Iterate over all subscriptions, automatically paginating. Default limit per page: 500. */
-  listAll(args: Omit<ListSubscriptionsArgs, "nextToken"> = {}): AsyncGenerator<Subscription> {
+  async listAll(args: Omit<ListSubscriptionsArgs, "nextToken"> = {}): Promise<Subscription[]> {
     return paginate((listArgs) => this.list({ ...args, ...listArgs }), {
       limit: args.limit ?? 500,
     });
