@@ -2,6 +2,9 @@ import { AsyncLocalStorage } from "node:async_hooks";
 
 import { assemblyApi } from "@assembly-js/node-sdk";
 import { AssemblyNoTokenError } from "src/errors/no-token";
+import type { TokenPayload } from "src/schemas/shared/token";
+import { AssemblyToken } from "src/token/assembly-token";
+import type { ClientTokenPayload, InternalUserTokenPayload } from "src/token/assembly-token";
 import { AppConnectionsResource } from "src/lib/modules/app-connections/resource";
 import { AppInstallsResource } from "src/lib/modules/app-installs/resource";
 import { ClientsResource } from "src/lib/modules/clients/resource";
@@ -76,6 +79,10 @@ export class AssemblyKit {
   }
 
   readonly currentToken: string | undefined;
+  /** The decrypted AssemblyToken instance, or undefined when no token was provided. */
+  readonly token: AssemblyToken | undefined;
+  /** The decrypted token payload, or undefined when no token was provided. */
+  readonly payload: TokenPayload | undefined;
   readonly appConnections: AppConnectionsResource;
   readonly appInstalls: AppInstallsResource;
   readonly clients: ClientsResource;
@@ -118,6 +125,14 @@ export class AssemblyKit {
       });
     }
 
+    if (options.token) {
+      this.token = new AssemblyToken({ token: options.token, apiKey: options.apiKey });
+      this.payload = this.token.payload;
+    } else {
+      this.token = undefined;
+      this.payload = undefined;
+    }
+
     const sdk = assemblyApi({ apiKey: options.apiKey, token: options.token });
     const validate = options.validateResponses ?? true;
     const retry = options.retry === false ? false : { ...DEFAULT_RETRY, ...options.retry };
@@ -150,5 +165,29 @@ export class AssemblyKit {
     this.taskTemplates = new TaskTemplatesResource(sdk, validate, retry);
     this.tasks = new TasksResource(sdk, validate, retry);
     this.workspace = new WorkspaceResource(sdk, validate, retry);
+  }
+
+  /**
+   * Assert that a token was provided and belongs to a client user.
+   * @throws {AssemblyNoTokenError} If no token was provided.
+   * @throws {AssemblyUnauthorizedError} If the token is not a client token.
+   */
+  ensureIsClient(): ClientTokenPayload {
+    if (!this.token) {
+      throw new AssemblyNoTokenError();
+    }
+    return this.token.ensureIsClient();
+  }
+
+  /**
+   * Assert that a token was provided and belongs to an internal user.
+   * @throws {AssemblyNoTokenError} If no token was provided.
+   * @throws {AssemblyUnauthorizedError} If the token is not an internal user token.
+   */
+  ensureIsInternalUser(): InternalUserTokenPayload {
+    if (!this.token) {
+      throw new AssemblyNoTokenError();
+    }
+    return this.token.ensureIsInternalUser();
   }
 }
