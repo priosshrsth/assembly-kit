@@ -21,6 +21,7 @@ export default defineConfig({
       "src/schemas/index.ts",
       "src/token/index.ts",
     ],
+    unbundle: true,
     exports: true,
     sourcemap: true,
     dts: {
