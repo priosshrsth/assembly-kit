@@ -86,11 +86,7 @@ export class AssemblyError extends Error {
   }
 }
 
-export function createAssemblyError(
-  name: string,
-  defaultMessage: string,
-  statusCode: number
-) {
+export function createAssemblyError(name: string, defaultMessage: string, statusCode: number) {
   return class extends AssemblyError {
     constructor(messageOverride?: string, details?: unknown) {
       super(messageOverride ?? defaultMessage, statusCode, details);
@@ -577,10 +573,7 @@ export const DASHBOARD_DOMAINS = [
 `src/app-bridge/send.ts`:
 
 ```ts
-export function sendToParent(
-  payload: AppBridgePayload,
-  portalUrl?: string
-): void;
+export function sendToParent(payload: AppBridgePayload, portalUrl?: string): void;
 ```
 
 - Guard: if `typeof window === 'undefined'`, return immediately (SSR safe).

@@ -8,11 +8,7 @@ export interface AssemblyRateLimitErrorOptions extends AssemblyErrorOptions {
 export class AssemblyRateLimitError extends AssemblyError {
   readonly retryAfter?: number;
 
-  constructor({
-    message,
-    retryAfter,
-    ...rest
-  }: AssemblyRateLimitErrorOptions = {}) {
+  constructor({ message, retryAfter, ...rest }: AssemblyRateLimitErrorOptions = {}) {
     super({
       message: message ?? "Rate limit exceeded",
       statusCode: 429,

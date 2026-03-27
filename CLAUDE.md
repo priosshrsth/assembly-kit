@@ -5,22 +5,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-bun run build          # Build all entry points to dist/ via bunup
-bun run dev            # Build in watch mode
-bun test               # Run tests
-bun test --watch       # Run tests in watch mode
-bun test path/to.test.ts  # Run a single test file
-bun run type-check     # TypeScript type checking (no emit)
-bun run lint           # oxlint
-bun run format         # oxfmt
-bun run check          # ultracite check (lint + format check)
-bun run fix            # ultracite fix (auto-fix lint + format)
-bun run release        # Bump version, commit, push, tag via bumpp
+pnpm run build         # Build all entry points to dist/ via vp pack
+pnpm run dev           # Build in watch mode
+pnpm test              # Run tests via vp test
+pnpm run check         # Lint + format + type check via vp check
+pnpm run release       # Bump version, commit, push, tag via bumpp
 ```
 
-Pre-commit hook (lefthook) auto-runs `bun x ultracite fix` on staged files.
+Pre-commit hook runs `vp check --fix` on staged files.
 
-After any significant code change, always run `bun run lint` and `bun run fix` to ensure lint and formatting pass before committing.
+After any significant code change, always run `vp check --fix` to ensure lint, formatting, and type checking pass before committing.
 
 ## Documentation Rules
 
