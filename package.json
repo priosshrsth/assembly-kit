@@ -57,6 +57,7 @@
     "@assembly-js/app-bridge": "^1.1.1",
     "@assembly-js/node-sdk": "^3.19.1",
     "pino": ">=9",
+    "pino-pretty": ">=10",
     "react": ">=18",
     "typescript": ">=5",
     "zod": ">=4"
@@ -66,6 +67,9 @@
       "optional": true
     },
     "pino": {
+      "optional": true
+    },
+    "pino-pretty": {
       "optional": true
     },
     "react": {
