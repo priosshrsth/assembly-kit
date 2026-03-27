@@ -5,6 +5,8 @@ TypeScript SDK for the [Assembly](https://assembly.ac) platform. ESM-only, targe
 ## Installation
 
 ```bash
+pnpm add @anitshrsth/assembly-kit
+# or
 bun add @anitshrsth/assembly-kit
 # or
 npm install @anitshrsth/assembly-kit
@@ -14,106 +16,155 @@ npm install @anitshrsth/assembly-kit
 
 ### Client
 
-Create an SDK client with `createAssemblyKit()`. Each call produces an independent instance with its own HTTP transport and rate limiter (safe for serverless environments).
+Create an SDK client with `new AssemblyKit()`. Each call produces an independent instance (safe for serverless environments).
 
 ```typescript
-import { createAssemblyKit } from "@anitshrsth/assembly-kit";
+import { AssemblyKit } from "@anitshrsth/assembly-kit";
 
-const client = createAssemblyKit({
-  workspaceId: "ws-123",
+const kit = new AssemblyKit({
   apiKey: "your-api-key",
+  token: encryptedToken, // required unless ASSEMBLY_ENV=local
 });
 
 // Access resources via namespaces
-const workspace = await client.workspace.get();
-const companies = await client.companies.list();
-const task = await client.tasks.create({ title: "Follow up" });
+const workspace = await kit.workspace.retrieve();
+const companies = await kit.companies.list();
+const task = await kit.tasks.create({ title: "Follow up", ... });
+```
+
+#### Request-scoped singleton
+
+For serverless / Vercel fluid compute, use `AssemblyKit.new()` instead of `new AssemblyKit()`. It returns the existing instance for the current async context if the token matches, avoiding redundant allocations:
+
+```typescript
+// Returns the same instance on repeated calls within the same async context
+const kit = AssemblyKit.new({ apiKey, token });
+const same = AssemblyKit.new({ apiKey, token }); // same instance
+```
+
+#### Token requirement
+
+A token is required at construction time unless `ASSEMBLY_ENV=local` (or `ASSEMBLY_ENV=__SECRET_STAGING__`). Omitting the token in any other environment throws `AssemblyNoTokenError`:
+
+```typescript
+// Throws AssemblyNoTokenError unless ASSEMBLY_ENV=local
+const kit = new AssemblyKit({ apiKey: "your-api-key" });
 ```
 
 #### Options
 
-| Option              | Type      | Default                    | Description                                                                                                               |
-| ------------------- | --------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `workspaceId`       | `string`  | —                          | Required. Used to build the compound API key.                                                                             |
-| `apiKey`            | `string`  | —                          | Required. Your Assembly API key.                                                                                          |
-| `token`             | `string`  | —                          | Encrypted token from Assembly. Required when `isMarketplaceApp` is `true`, optional otherwise.                            |
-| `isMarketplaceApp`  | `boolean` | `false`                    | When true, token is required at construction time.                                                                        |
-| `tokenId`           | `string`  | —                          | Extracted from the parsed token. Appended to the compound key automatically. Skipped when `SKIP_TOKEN_ID` env var is set. |
-| `retryCount`        | `number`  | `2`                        | Max retry attempts for retryable errors.                                                                                  |
-| `requestsPerSecond` | `number`  | `20`                       | Rate limiter sliding window limit.                                                                                        |
-| `validateResponses` | `boolean` | `true`                     | Validate API responses through Zod schemas.                                                                               |
-| `baseUrl`           | `string`  | `https://api.assembly.com` | Base URL for all API requests.                                                                                            |
+| Option              | Type                  | Default   | Description                                                          |
+| ------------------- | --------------------- | --------- | -------------------------------------------------------------------- |
+| `apiKey`            | `string`              | —         | Required. Your Assembly API key.                                     |
+| `token`             | `string`              | —         | Encrypted token from Assembly. Required unless `ASSEMBLY_ENV=local`. |
+| `retry`             | `RetryOptions\|false` | see below | Retry config, or `false` to disable retry entirely.                  |
+| `validateResponses` | `boolean`             | `true`    | When true, all responses are validated through Zod schemas.          |
 
-#### Resource namespaces
+**Default retry options:**
 
-| Namespace               | Methods                                                          |
-| ----------------------- | ---------------------------------------------------------------- |
-| `workspace`             | `get()`                                                          |
-| `clients`               | `list()`, `get()`, `create()`, `update()`, `delete()`            |
-| `companies`             | `list()`, `get()`, `create()`, `update()`, `delete()`            |
-| `internalUsers`         | `list()`, `get()`                                                |
-| `customFields`          | `list(entityType)`                                               |
-| `customFieldOptions`    | `list()`                                                         |
-| `notes`                 | `list()`, `get()`, `create()`, `update()`, `delete()`            |
-| `messageChannels`       | `list()`, `get()`, `create()`                                    |
-| `messages`              | `list()`, `send()`                                               |
-| `products`              | `list()`, `get()`                                                |
-| `prices`                | `list()`, `get()`                                                |
-| `invoiceTemplates`      | `list()`                                                         |
-| `invoices`              | `list()`, `get()`, `create()`                                    |
-| `subscriptionTemplates` | `list()`                                                         |
-| `subscriptions`         | `list()`, `get()`, `create()`, `cancel()`                        |
-| `payments`              | `list()`                                                         |
-| `fileChannels`          | `list()`, `get()`, `create()`                                    |
-| `files`                 | `list()`, `get()`, `create()`, `delete()`, `updatePermissions()` |
-| `contractTemplates`     | `list()`, `get()`                                                |
-| `contracts`             | `list()`, `get()`, `send()`                                      |
-| `forms`                 | `list()`, `get()`                                                |
-| `formResponses`         | `list()`, `request()`                                            |
-| `tasks`                 | `list()`, `get()`, `create()`, `update()`, `delete()`            |
-| `taskTemplates`         | `list()`, `get()`                                                |
-| `notifications`         | `list()`, `create()`, `delete()`, `markRead()`, `markUnread()`   |
-| `appConnections`        | `list()`, `create()`                                             |
-| `appInstalls`           | `list()`                                                         |
+| Option       | Default |
+| ------------ | ------- |
+| `retries`    | `3`     |
+| `minTimeout` | `1000`  |
+| `maxTimeout` | `5000`  |
+| `factor`     | `2`     |
 
-#### Marketplace apps
+#### Token properties
+
+When a token is provided, the decrypted payload is available directly on the instance:
 
 ```typescript
-const client = createAssemblyKit({
-  workspaceId: "ws-123",
-  apiKey: "your-api-key",
-  token: encryptedToken,
-  isMarketplaceApp: true,
-});
+const kit = new AssemblyKit({ apiKey, token });
+
+kit.token; // AssemblyToken | undefined — the decrypted token instance
+kit.payload; // TokenPayload | undefined — the decrypted token payload
+
+// Assert token type — throws AssemblyNoTokenError or AssemblyUnauthorizedError
+const clientPayload = kit.ensureIsClient(); // ClientTokenPayload
+const internalPayload = kit.ensureIsInternalUser(); // InternalUserTokenPayload
 ```
 
 #### Disabling response validation
 
 ```typescript
-const client = createAssemblyKit({
-  workspaceId: "ws-123",
+const kit = new AssemblyKit({
   apiKey: "your-api-key",
+  token: encryptedToken,
   validateResponses: false, // skip Zod parsing for performance
 });
 ```
 
-### Pagination
-
-Use `paginate()` to iterate through all pages of a paginated resource:
+#### Disabling retry
 
 ```typescript
-import { createAssemblyKit, paginate } from "@anitshrsth/assembly-kit";
+const kit = new AssemblyKit({
+  apiKey: "your-api-key",
+  token: encryptedToken,
+  retry: false,
+});
+```
 
-const client = createAssemblyKit({ workspaceId: "ws-123", apiKey: "key" });
+#### Resource namespaces
 
-for await (const task of paginate(client.tasks.list)) {
-  console.log(task.title);
+| Namespace               | Methods                                                                 |
+| ----------------------- | ----------------------------------------------------------------------- |
+| `workspace`             | `retrieve()`                                                            |
+| `clients`               | `list()`, `retrieve()`, `create()`, `update()`, `delete()`, `listAll()` |
+| `companies`             | `list()`, `retrieve()`, `create()`, `update()`, `delete()`, `listAll()` |
+| `internalUsers`         | `list()`, `retrieve()`, `listAll()`                                     |
+| `customFields`          | `list()`                                                                |
+| `customFieldOptions`    | `list()`                                                                |
+| `notes`                 | `list()`, `retrieve()`, `create()`, `update()`, `delete()`, `listAll()` |
+| `messageChannels`       | `list()`, `retrieve()`, `create()`, `listAll()`                         |
+| `messages`              | `list()`, `send()`, `listAll()`                                         |
+| `products`              | `list()`, `retrieve()`, `listAll()`                                     |
+| `prices`                | `list()`, `retrieve()`, `listAll()`                                     |
+| `invoiceTemplates`      | `list()`, `listAll()`                                                   |
+| `invoices`              | `list()`, `retrieve()`, `create()`, `listAll()`                         |
+| `subscriptionTemplates` | `list()`, `listAll()`                                                   |
+| `subscriptions`         | `list()`, `retrieve()`, `create()`, `cancel()`, `listAll()`             |
+| `payments`              | `list()`, `listAll()`                                                   |
+| `fileChannels`          | `list()`, `retrieve()`, `create()`, `listAll()`                         |
+| `files`                 | `list()`, `retrieve()`, `create()`, `delete()`, `listAll()`             |
+| `contractTemplates`     | `list()`, `retrieve()`, `listAll()`                                     |
+| `contracts`             | `list()`, `retrieve()`, `send()`                                        |
+| `forms`                 | `list()`, `retrieve()`, `listAll()`                                     |
+| `formResponses`         | `list()`, `create()`                                                    |
+| `tasks`                 | `list()`, `retrieve()`, `create()`, `update()`, `delete()`, `listAll()` |
+| `taskTemplates`         | `list()`, `retrieve()`, `listAll()`                                     |
+| `notifications`         | `list()`, `create()`, `delete()`, `markRead()`, `markUnread()`          |
+| `events`                | `list()`, `retrieve()`, `create()`, `listAll()`                         |
+| `appConnections`        | `list()`, `create()`                                                    |
+| `appInstalls`           | `list()`, `retrieve()`                                                  |
+
+### Pagination
+
+Every resource that supports listing also exposes `listAll()`, which collects all pages into a single array by following `nextToken` cursors automatically:
+
+```typescript
+import { AssemblyKit } from "@anitshrsth/assembly-kit";
+
+const kit = new AssemblyKit({ apiKey, token });
+
+// Returns Promise<Company[]> — all pages collected
+const allCompanies = await kit.companies.listAll();
+
+// Filter arguments are passed through on every page
+const allTasks = await kit.tasks.listAll({ status: "open" });
+```
+
+For manual pagination, use `list()` directly and handle `nextToken` yourself:
+
+```typescript
+const page1 = await kit.companies.list({ limit: 100 });
+if (page1.nextToken) {
+  const page2 = await kit.companies.list({ limit: 100, nextToken: page1.nextToken });
 }
 ```
 
 ### Error classes
 
-All Assembly errors extend the base `AssemblyError` class, which carries a `statusCode` and optional `details` payload. Import them from the package root:
+All errors extend the base `AssemblyError` class, which carries a `statusCode` and optional `details` payload. Import from the package root or from `@anitshrsth/assembly-kit/errors`:
 
 ```typescript
 import {
@@ -142,7 +193,7 @@ import {
 } from "@anitshrsth/assembly-kit";
 
 try {
-  await client.workspaces.get(id);
+  await kit.companies.retrieve(id);
 } catch (err) {
   if (err instanceof AssemblyRateLimitError) {
     console.log("Retry after:", err.retryAfter); // seconds, if provided
@@ -161,8 +212,8 @@ try {
 | `AssemblyError`              | —      | Base class for all errors                               |
 | `AssemblyMissingApiKeyError` | 400    | API key is absent or empty                              |
 | `AssemblyNoTokenError`       | 400    | Token required but not provided                         |
-| `AssemblyInvalidTokenError`  | 401    | Token could not be decrypted                            |
-| `AssemblyUnauthorizedError`  | 401    | API key rejected by Assembly                            |
+| `AssemblyInvalidTokenError`  | 401    | Token could not be decrypted or validated               |
+| `AssemblyUnauthorizedError`  | 401    | API key rejected, or token fails identity assertion     |
 | `AssemblyForbiddenError`     | 403    | API key lacks required permission                       |
 | `AssemblyNotFoundError`      | 404    | Requested resource does not exist                       |
 | `AssemblyValidationError`    | 422    | Request payload rejected by API                         |
@@ -173,7 +224,7 @@ try {
 
 ### Schemas
 
-All Zod schemas are available from `assembly-kit/schemas`. Each resource has a **base** schema, a **response** schema (wrapping the base for paginated API responses), and optionally a **request** schema for create/update payloads.
+All Zod schemas are available from `@anitshrsth/assembly-kit/schemas` (also re-exported from the package root). Each resource has a base schema, a response schema (for paginated API responses), and optionally a request schema for create/update payloads.
 
 ```typescript
 import {
@@ -202,8 +253,6 @@ import type {
 
 #### Response schemas
 
-Response schemas wrap the base schemas into the paginated shape returned by the Assembly API:
-
 ```typescript
 import {
   ClientsResponseSchema,
@@ -219,8 +268,6 @@ import type {
 ```
 
 #### Request schemas
-
-Request schemas define the shape of create/update payloads:
 
 ```typescript
 import {
@@ -249,11 +296,19 @@ if (result.success) {
 
 ### Token Utilities
 
-Decrypt, validate, and inspect encrypted Assembly tokens using the `AssemblyToken` class.
+Decrypt, validate, and inspect encrypted Assembly tokens using the `AssemblyToken` class. These utilities are standalone — they are also used internally by `AssemblyKit` when a token is provided.
+
+Import from either the package root or from `@anitshrsth/assembly-kit/token`:
+
+```typescript
+import { AssemblyToken, createToken } from "@anitshrsth/assembly-kit";
+// or
+import { AssemblyToken, createToken } from "@anitshrsth/assembly-kit/token";
+```
 
 #### `AssemblyToken`
 
-Decrypt and validate a token using your API key. The constructor decrypts the token and exposes the payload along with convenience getters and guard methods:
+Decrypts and validates a token using your API key. The constructor exposes the payload along with convenience getters and guard methods:
 
 ```typescript
 import { AssemblyToken } from "@anitshrsth/assembly-kit";
@@ -269,20 +324,26 @@ token.tokenId; // string | undefined — present in some marketplace tokens
 token.baseUrl; // string | undefined — overrides the API base URL if set
 
 // Identity checks
-token.isClientUser; // true if clientId + companyId present
-token.isInternalUser; // true if internalUserId present
+token.isClientUser; // true if clientId + companyId are present
+token.isInternalUser; // true if internalUserId is present
 
 // Throwing guards — return narrowed payload type or throw AssemblyUnauthorizedError
 const clientPayload = token.ensureIsClient(); // ClientTokenPayload
 const internalPayload = token.ensureIsInternalUser(); // InternalUserTokenPayload
 
-// Build compound API key for the X-API-Key header
+// Build the compound API key for the X-API-Key header
 const key = token.buildCompoundKey({ apiKey });
 // With tokenId:    "workspaceId/apiKey/tokenId"
 // Without tokenId: "workspaceId/apiKey"
 ```
 
-Throws `AssemblyNoTokenError` if the token is missing, or `AssemblyInvalidTokenError` if decryption/validation fails.
+Throws `AssemblyNoTokenError` if the token is missing, or `AssemblyInvalidTokenError` if decryption or validation fails.
+
+For request-scoped usage, use `AssemblyToken.new()` — it returns the existing instance for the current async context if the token matches:
+
+```typescript
+const token = AssemblyToken.new({ token: encryptedTokenHex, apiKey });
+```
 
 #### `createToken`
 
@@ -304,156 +365,36 @@ const encrypted = createToken({
 
 The payload is validated against `TokenPayloadSchema` before encryption. Throws `AssemblyInvalidTokenError` if validation fails. Each call produces a different ciphertext (random IV).
 
-### React Server Components (`assembly-kit/react`)
+### Logger
 
-Pre-built cached singletons for React Server Components. Each helper wraps its core counterpart with React's [`cache`](https://react.dev/reference/react/cache), deduplicating instances within a single server render. Arguments are primitives so React compares by value.
+A request-scoped Pino logger is available from `@anitshrsth/assembly-kit/logger`. Requires `pino` and `pino-pretty` as peer dependencies.
 
-Requires `react >= 18` as a peer dependency.
+```typescript
+import { createLogger, logger } from "@anitshrsth/assembly-kit/logger";
+
+// Request-scoped: returns the same instance within the same async context
+const log = createLogger({ level: "debug" });
+log.info("hello");
+log.warn("careful");
+
+// Or use the default module-level logger
+import { logger } from "@anitshrsth/assembly-kit/logger";
+logger.info("starting up");
+```
+
+The logger uses `pino-pretty` in non-production environments and plain JSON in production (`NODE_ENV=production`). The default log level respects the `LOG_LEVEL` environment variable.
+
+### App Bridge (React Hooks)
+
+React hooks that register UI elements in the Assembly dashboard header from an embedded iframe app. Handles setup, cleanup, and `beforeunload` automatically.
+
+Requires `react >= 18` and `@assembly-js/app-bridge` as peer dependencies:
 
 ```bash
-bun add @anitshrsth/assembly-kit react
+pnpm add react @assembly-js/app-bridge
 ```
 
-#### `getAssemblyToken`
-
-Cached factory for `AssemblyToken`. Decrypts and validates the token once per render:
-
-```ts
-import { getAssemblyToken } from "@anitshrsth/assembly-kit/react";
-
-const token = getAssemblyToken(encryptedHex, apiKey);
-token.workspaceId; // string
-token.isClientUser; // boolean
-```
-
-#### `getAssemblyKit`
-
-Cached factory for `AssemblyKitClient`:
-
-```ts
-import { getAssemblyKit } from "@anitshrsth/assembly-kit/react";
-
-const client = getAssemblyKit(workspaceId, apiKey, token, tokenId);
-const workspace = await client.workspace.get();
-```
-
-#### `getAssemblyClient`
-
-Cached factory for the legacy `AssemblyClient`. Requires `@assembly-js/node-sdk` as a peer dependency — tree-shaken if unused:
-
-```ts
-import { getAssemblyClient } from "@anitshrsth/assembly-kit/react";
-
-const client = getAssemblyClient(apiKey, token);
-const workspace = await client.retrieveWorkspace();
-```
-
-#### Full example
-
-```tsx
-// app/page.tsx
-import { getAssemblyKit, getAssemblyToken } from "@anitshrsth/assembly-kit/react";
-
-export default async function Page() {
-  const apiKey = process.env.ASSEMBLY_API_KEY!;
-  const workspaceId = process.env.ASSEMBLY_WORKSPACE_ID!;
-  const rawToken = process.env.ASSEMBLY_TOKEN; // optional for marketplace apps
-
-  // Both calls are deduplicated — only one instance is created per render
-  const token = rawToken ? getAssemblyToken(rawToken, apiKey) : undefined;
-  const client = getAssemblyKit(workspaceId, apiKey, rawToken, token?.tokenId);
-
-  const workspace = await client.workspace.get();
-  // ...
-}
-```
-
-#### Non-React caching (plain Node.js / Bun)
-
-For non-React environments, use a `Map` keyed by token (when present) or workspaceId for process-level caching:
-
-```ts
-import { AssemblyToken, createAssemblyKit, type AssemblyKitClient } from "@anitshrsth/assembly-kit";
-
-const cache = new Map<string, AssemblyKitClient>();
-
-export function getAssemblyKit(opts: {
-  workspaceId: string;
-  apiKey: string;
-  token?: string;
-  tokenId?: string;
-}): AssemblyKitClient {
-  const key = opts.token ?? opts.workspaceId;
-  let cached = cache.get(key);
-  if (!cached) {
-    cached = createAssemblyKit(opts);
-    cache.set(key, cached);
-  }
-  return cached;
-}
-```
-
-> **Note:** For long-lived processes with many different tokens, consider adding cache eviction (TTL or LRU) to avoid unbounded memory growth.
-
-### App Bridge
-
-The app-bridge entry point provides framework-agnostic utilities for communicating with the Assembly dashboard from an embedded iframe app. Works in any JavaScript environment — no React dependency required.
-
-#### `sendToParent`
-
-Sends a typed postMessage payload to the Assembly dashboard parent frame:
-
-```typescript
-import { sendToParent, Icons } from "@anitshrsth/assembly-kit/app-bridge";
-import type { PrimaryCtaPayload } from "@anitshrsth/assembly-kit/app-bridge";
-
-// Register a primary CTA button in the dashboard header
-const payload: PrimaryCtaPayload = {
-  type: "header.primaryCta",
-  label: "Create Invoice",
-  icon: Icons.Plus,
-  onClick: "header.primaryCta.onClick",
-};
-
-sendToParent(payload);
-```
-
-When called without a `portalUrl`, it fans out the message to all known Assembly dashboard domains. Pass a specific origin to restrict:
-
-```typescript
-sendToParent(payload, "https://dashboard.assembly.com");
-```
-
-`sendToParent` is SSR-safe — it's a no-op when `window` is undefined.
-
-#### Payload types
-
-```typescript
-import type {
-  PrimaryCtaPayload, // { type: "header.primaryCta", label?, icon?, onClick? }
-  SecondaryCtaPayload, // { type: "header.secondaryCta", label?, icon?, onClick? }
-  ActionsMenuPayload, // { type: "header.actionsMenu", items: ActionItem[] }
-  AppBridgePayload, // Discriminated union of all three
-  ActionItem, // { label, onClick, icon?, color? }
-  CtaConfig, // { label?, icon?, onClick?(), color? }
-  BridgeOpts, // { portalUrl?, show? }
-} from "@anitshrsth/assembly-kit/app-bridge";
-```
-
-#### Clearing a slot
-
-Send a payload with only the `type` field to remove a button, or an empty items array for the actions menu:
-
-```typescript
-sendToParent({ type: "header.primaryCta" });
-sendToParent({ type: "header.actionsMenu", items: [] });
-```
-
-### Bridge UI (React Hooks)
-
-React hooks that wrap `sendToParent` into a declarative API. They handle setup, cleanup, and `beforeunload` automatically.
-
-Requires `react >= 18` as a peer dependency.
+Import from `@anitshrsth/assembly-kit/bridge-ui`:
 
 #### `usePrimaryCta`
 
@@ -461,12 +402,11 @@ Registers a primary CTA button in the dashboard header:
 
 ```tsx
 import { usePrimaryCta } from "@anitshrsth/assembly-kit/bridge-ui";
-import { Icons } from "@anitshrsth/assembly-kit/app-bridge";
+import type { CtaConfig } from "@assembly-js/app-bridge";
 
 function MyApp() {
   usePrimaryCta({
     label: "Create Invoice",
-    icon: Icons.Plus,
     onClick: () => {
       console.log("Primary CTA clicked");
     },
@@ -482,12 +422,10 @@ Registers a secondary CTA button. Same API as `usePrimaryCta`:
 
 ```tsx
 import { useSecondaryCta } from "@anitshrsth/assembly-kit/bridge-ui";
-import { Icons } from "@anitshrsth/assembly-kit/app-bridge";
 
 function MyApp() {
   useSecondaryCta({
     label: "Export",
-    icon: Icons.Download,
     onClick: () => {
       console.log("Secondary CTA clicked");
     },
@@ -503,17 +441,12 @@ Registers a dropdown actions menu in the dashboard header:
 
 ```tsx
 import { useActionsMenu } from "@anitshrsth/assembly-kit/bridge-ui";
-import { Icons } from "@anitshrsth/assembly-kit/app-bridge";
+import type { ActionMenuItem } from "@assembly-js/app-bridge";
 
 function MyApp() {
   useActionsMenu([
-    { label: "Archive", onClick: "actions.archive", icon: Icons.Archive },
-    {
-      label: "Delete",
-      onClick: "actions.delete",
-      icon: Icons.Trash,
-      color: "red",
-    },
+    { label: "Archive", onClick: () => archive() },
+    { label: "Delete", onClick: () => remove() },
   ]);
 
   return <div>My App</div>;
@@ -522,84 +455,33 @@ function MyApp() {
 
 #### Visibility toggle
 
-All hooks accept an optional second argument to control visibility:
+All hooks accept an optional second argument to control visibility. When `false`, the slot is cleared. Defaults to `true`:
 
 ```tsx
-usePrimaryCta({ label: "Save", onClick: () => save() }, { show: hasChanges });
+usePrimaryCta({ label: "Save", onClick: () => save() }, false);
+useActionsMenu([{ label: "Archive", onClick: () => archive() }], hasItems);
 ```
 
-When `show` is `false`, the slot is cleared in the dashboard header. Defaults to `true`.
+## Entry Points
 
-#### Portal URL
-
-If your app is embedded in a custom portal, pass the portal origin to restrict postMessage targeting:
-
-```tsx
-usePrimaryCta(
-  { label: "Save", onClick: () => save() },
-  { portalUrl: "https://my-portal.example.com" },
-);
-```
-
-### Legacy Client
-
-A drop-in wrapper around the original `@assembly-js/node-sdk` that adds automatic retry with exponential backoff on 429 (rate limit) and 5xx (server) errors. Uses a `Proxy` to wrap all 76+ SDK methods automatically.
-
-Requires `@assembly-js/node-sdk` as a peer dependency — install it alongside `@anitshrsth/assembly-kit`:
-
-```bash
-bun add @anitshrsth/assembly-kit @assembly-js/node-sdk
-```
-
-#### Basic usage
-
-```typescript
-import { createAssemblyClient } from "@anitshrsth/assembly-kit/assembly-client";
-
-const client = createAssemblyClient({
-  apiKey: "your-api-key",
-  token: "encrypted-token", // optional
-});
-
-// All original SDK methods are available, with automatic retry
-const workspace = await client.retrieveWorkspace();
-const clients = await client.listClients({ limit: 50 });
-```
-
-#### Custom retry options
-
-```typescript
-const client = createAssemblyClient({
-  apiKey: "your-api-key",
-  retry: {
-    retries: 5, // max attempts (default: 3)
-    minTimeout: 500, // min delay in ms (default: 1000)
-    maxTimeout: 10000, // max delay in ms (default: 5000)
-    factor: 2, // exponential factor (default: 2)
-  },
-});
-```
-
-#### Disabling retry
-
-```typescript
-const client = createAssemblyClient({
-  apiKey: "your-api-key",
-  retry: false, // SDK methods called directly, no retry wrapper
-});
-```
-
-> **Note:** The original SDK uses a global `OpenAPI` config object internally. Multiple `createAssemblyClient()` calls with different credentials will interfere with each other. Use one instance per credential set.
+| Import path                          | Exports                                                                          |
+| ------------------------------------ | -------------------------------------------------------------------------------- |
+| `@anitshrsth/assembly-kit`           | `AssemblyKit`, all errors, all schemas, `AssemblyToken`, `createToken`           |
+| `@anitshrsth/assembly-kit/client`    | `AssemblyKit`, `AssemblyKitOptions`, `RetryOptions`                              |
+| `@anitshrsth/assembly-kit/errors`    | All error classes                                                                |
+| `@anitshrsth/assembly-kit/schemas`   | All Zod schemas and inferred types (no client dependency)                        |
+| `@anitshrsth/assembly-kit/token`     | `AssemblyToken`, `createToken`, `ClientTokenPayload`, `InternalUserTokenPayload` |
+| `@anitshrsth/assembly-kit/logger`    | `createLogger`, `logger`                                                         |
+| `@anitshrsth/assembly-kit/bridge-ui` | `usePrimaryCta`, `useSecondaryCta`, `useActionsMenu`                             |
 
 ## Development
 
 ```bash
-bun run build        # build to dist/
-bun run dev          # build in watch mode
-bun test             # run tests
-bun run type-check   # TypeScript check (no emit)
-bun run lint         # oxlint
-bun run fix          # auto-fix lint + format
+pnpm run build    # build to dist/
+pnpm run dev      # build in watch mode
+pnpm test         # run tests
+pnpm run check    # lint + format + type check
+pnpm run release  # bump version, commit, push, tag
 ```
 
 ## License

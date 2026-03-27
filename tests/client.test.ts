@@ -12,6 +12,19 @@ vi.mock("@assembly-js/node-sdk", () => ({
   }),
 }));
 
+vi.mock("src/token/assembly-token", () => ({
+  AssemblyToken: class {
+    payload = { workspaceId: "ws-1" };
+    constructor(public opts: { token: unknown; apiKey: string }) {}
+    ensureIsClient(): unknown {
+      return this.payload;
+    }
+    ensureIsInternalUser(): unknown {
+      return this.payload;
+    }
+  },
+}));
+
 import { AssemblyKit } from "src/client";
 
 /** Run `fn` in a fresh async context (isolated from the test runner's context). */
