@@ -9,7 +9,7 @@ export interface SubscriptionTemplate {
   id: string;
   name?: string;
   object: "subscriptionTemplate";
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export const SubscriptionTemplateSchema: z.ZodType<SubscriptionTemplate> = z.object({
@@ -17,7 +17,7 @@ export const SubscriptionTemplateSchema: z.ZodType<SubscriptionTemplate> = z.obj
   id: z.string(),
   name: z.string().optional(),
   object: z.literal("subscriptionTemplate"),
-  updatedAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime().optional(),
 });
 
 // ---------------------------------------------------------------------------

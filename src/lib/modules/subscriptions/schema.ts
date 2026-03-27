@@ -14,7 +14,7 @@ export interface Subscription {
   /** @deprecated Use `clientId`/`companyId` instead. */
   recipientId?: string;
   status?: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export const SubscriptionSchema: z.ZodType<Subscription> = z.object({
@@ -26,7 +26,7 @@ export const SubscriptionSchema: z.ZodType<Subscription> = z.object({
   object: z.literal("subscription"),
   recipientId: z.string().optional(),
   status: z.string().optional(),
-  updatedAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime().optional(),
 });
 
 // ---------------------------------------------------------------------------

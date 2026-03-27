@@ -16,7 +16,7 @@ export interface FileChannel {
   membershipEntityId?: string;
   membershipType: MembershipType;
   object: "fileChannel";
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export const FileChannelSchema: z.ZodType<FileChannel> = z.object({
@@ -28,7 +28,7 @@ export const FileChannelSchema: z.ZodType<FileChannel> = z.object({
   membershipEntityId: z.string().optional(),
   membershipType: MembershipTypeSchema,
   object: z.literal("fileChannel"),
-  updatedAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime().optional(),
 });
 
 // ---------------------------------------------------------------------------

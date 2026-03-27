@@ -16,7 +16,7 @@ export interface AssemblyFile {
   name?: string;
   object: "file";
   path?: string;
-  updatedAt: string;
+  updatedAt?: string;
   url?: string;
 }
 
@@ -28,7 +28,7 @@ export const AssemblyFileSchema: z.ZodType<AssemblyFile> = z.object({
   name: z.string().optional(),
   object: z.literal("file"),
   path: z.string().optional(),
-  updatedAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime().optional(),
   url: z.string().optional(),
 });
 

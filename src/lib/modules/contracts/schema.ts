@@ -52,7 +52,7 @@ export interface Contract {
   shareDate?: string;
   signedFileUrl?: string;
   status?: ContractStatus;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export const ContractSchema: z.ZodType<Contract> = z.object({
@@ -69,7 +69,7 @@ export const ContractSchema: z.ZodType<Contract> = z.object({
   shareDate: z.string().optional(),
   signedFileUrl: z.string().optional(),
   status: ContractStatusSchema.optional(),
-  updatedAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime().optional(),
 });
 
 // ---------------------------------------------------------------------------

@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 
+process.env.ASSEMBLY_ENV = "local";
+
 const { mockRetrieveWorkspace } = vi.hoisted(() => ({
   mockRetrieveWorkspace: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
 }));
@@ -10,7 +12,7 @@ vi.mock("@assembly-js/node-sdk", () => ({
   }),
 }));
 
-import { AssemblyKit } from "src/client/client";
+import { AssemblyKit } from "src/client";
 
 /** Run `fn` in a fresh async context (isolated from the test runner's context). */
 const inFreshContext = (fn: () => void): Promise<void> =>

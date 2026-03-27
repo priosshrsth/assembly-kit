@@ -10,7 +10,7 @@ export interface Form {
   latestSubmissionDate?: string | null;
   name?: string;
   object: "form";
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export const FormSchema: z.ZodType<Form> = z.object({
@@ -19,7 +19,7 @@ export const FormSchema: z.ZodType<Form> = z.object({
   latestSubmissionDate: z.string().nullable().optional(),
   name: z.string().optional(),
   object: z.literal("form"),
-  updatedAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime().optional(),
 });
 
 // ---------------------------------------------------------------------------
