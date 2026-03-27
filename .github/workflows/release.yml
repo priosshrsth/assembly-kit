@@ -19,42 +19,36 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v4
         with:
           node-version: "24"
           registry-url: "https://registry.npmjs.org"
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
+          cache: pnpm
 
       - name: Install dependencies
-        run: bun install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
-      - name: Type check
-        run: bun run type-check
-
-      - name: Lint
-        run: bun run lint
+      - name: Check (lint + format + type check)
+        run: pnpm run check
 
       - name: Run tests
-        run: bun run test
+        run: pnpm test
 
       - name: Build
-        run: bun run build
+        run: pnpm run build
 
       - name: Generate changelog
-        run: bunx changelogithub
+        run: pnpm dlx changelogithub
         continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Update npm
-        run: npm install -g npm@latest
-
       - name: Publish packages to npm
-        run: bun pm pack && npm publish ./*.tgz --access public --provenance
+        run: pnpm pack && npm publish ./*.tgz --access public --provenance
         env:
           NPM_CONFIG_PROVENANCE: true
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

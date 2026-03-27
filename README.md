@@ -230,10 +230,7 @@ import {
   TaskCreateRequestSchema,
 } from "@anitshrsth/assembly-kit/schemas";
 
-import type {
-  ClientCreateRequest,
-  ClientUpdateRequest,
-} from "@anitshrsth/assembly-kit/schemas";
+import type { ClientCreateRequest, ClientUpdateRequest } from "@anitshrsth/assembly-kit/schemas";
 ```
 
 #### Validating data
@@ -355,10 +352,7 @@ const workspace = await client.retrieveWorkspace();
 
 ```tsx
 // app/page.tsx
-import {
-  getAssemblyKit,
-  getAssemblyToken,
-} from "@anitshrsth/assembly-kit/react";
+import { getAssemblyKit, getAssemblyToken } from "@anitshrsth/assembly-kit/react";
 
 export default async function Page() {
   const apiKey = process.env.ASSEMBLY_API_KEY!;
@@ -379,11 +373,7 @@ export default async function Page() {
 For non-React environments, use a `Map` keyed by token (when present) or workspaceId for process-level caching:
 
 ```ts
-import {
-  AssemblyToken,
-  createAssemblyKit,
-  type AssemblyKitClient,
-} from "@anitshrsth/assembly-kit";
+import { AssemblyToken, createAssemblyKit, type AssemblyKitClient } from "@anitshrsth/assembly-kit";
 
 const cache = new Map<string, AssemblyKitClient>();
 
@@ -547,7 +537,7 @@ If your app is embedded in a custom portal, pass the portal origin to restrict p
 ```tsx
 usePrimaryCta(
   { label: "Save", onClick: () => save() },
-  { portalUrl: "https://my-portal.example.com" }
+  { portalUrl: "https://my-portal.example.com" },
 );
 ```
 
