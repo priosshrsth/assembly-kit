@@ -10,7 +10,7 @@ export interface Note {
   createdBy?: string;
   id: string;
   object: "note";
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export const NoteSchema: z.ZodType<Note> = z.object({
@@ -21,7 +21,7 @@ export const NoteSchema: z.ZodType<Note> = z.object({
   createdBy: z.string().optional(),
   id: z.string(),
   object: z.literal("note"),
-  updatedAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime().optional(),
 });
 
 // ─── Response ─────────────────────────────────────────────────────────────────

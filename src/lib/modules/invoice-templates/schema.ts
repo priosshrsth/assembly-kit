@@ -9,7 +9,7 @@ export interface InvoiceTemplate {
   id: string;
   name?: string;
   object: "invoiceTemplate";
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export const InvoiceTemplateSchema: z.ZodType<InvoiceTemplate> = z.object({
@@ -17,7 +17,7 @@ export const InvoiceTemplateSchema: z.ZodType<InvoiceTemplate> = z.object({
   id: z.string(),
   name: z.string().optional(),
   object: z.literal("invoiceTemplate"),
-  updatedAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime().optional(),
 });
 
 // ---------------------------------------------------------------------------

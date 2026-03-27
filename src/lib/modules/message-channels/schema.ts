@@ -17,7 +17,7 @@ export interface MessageChannel {
   membershipEntityId?: string;
   membershipType: MembershipType;
   object: "messageChannel";
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export const MessageChannelSchema: z.ZodType<MessageChannel> = z.object({
@@ -30,7 +30,7 @@ export const MessageChannelSchema: z.ZodType<MessageChannel> = z.object({
   membershipEntityId: z.string().optional(),
   membershipType: MembershipTypeSchema,
   object: z.literal("messageChannel"),
-  updatedAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime().optional(),
 });
 
 // ---------------------------------------------------------------------------

@@ -10,7 +10,7 @@ export interface TaskTemplate {
   id: string;
   object: "taskTemplate";
   title?: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export const TaskTemplateSchema: z.ZodType<TaskTemplate> = z.object({
@@ -19,7 +19,7 @@ export const TaskTemplateSchema: z.ZodType<TaskTemplate> = z.object({
   id: z.string(),
   object: z.literal("taskTemplate"),
   title: z.string().optional(),
-  updatedAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime().optional(),
 });
 
 // ---------------------------------------------------------------------------

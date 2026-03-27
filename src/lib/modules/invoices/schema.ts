@@ -71,7 +71,7 @@ export interface Invoice {
   taxAmount?: number;
   taxPercentage?: number;
   total?: number;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export const InvoiceSchema: z.ZodType<Invoice> = z.object({
@@ -98,7 +98,7 @@ export const InvoiceSchema: z.ZodType<Invoice> = z.object({
   taxAmount: z.number().optional(),
   taxPercentage: z.number().optional(),
   total: z.number().optional(),
-  updatedAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime().optional(),
 });
 
 // ---------------------------------------------------------------------------
