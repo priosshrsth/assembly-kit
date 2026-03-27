@@ -40,8 +40,7 @@ export interface InternalUserTokenPayload extends TokenPayload {
  * @throws {AssemblyInvalidTokenError} If decryption, JSON parsing, or schema validation fails.
  */
 export class AssemblyToken {
-  static readonly #store: AsyncLocalStorage<AssemblyToken> =
-    new AsyncLocalStorage<AssemblyToken>();
+  static readonly #store: AsyncLocalStorage<AssemblyToken> = new AsyncLocalStorage<AssemblyToken>();
 
   readonly currentToken: string;
   readonly payload: TokenPayload;
@@ -110,10 +109,7 @@ export class AssemblyToken {
 
   /** `true` when the token belongs to a client (portal) user. */
   get isClientUser(): boolean {
-    return (
-      this.payload.clientId !== undefined &&
-      this.payload.companyId !== undefined
-    );
+    return this.payload.clientId !== undefined && this.payload.companyId !== undefined;
   }
 
   /** `true` when the token belongs to an internal (team member) user. */

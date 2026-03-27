@@ -1,9 +1,4 @@
-import {
-  createCipheriv,
-  createDecipheriv,
-  createHmac,
-  randomBytes,
-} from "node:crypto";
+import { createCipheriv, createDecipheriv, createHmac, randomBytes } from "node:crypto";
 
 /**
  * Derive a 128-bit AES key from the API key using HMAC-SHA256.
@@ -59,10 +54,7 @@ const parseEncryptedToken = ({
 /** Decrypt with native autoPadding (works on Node 18/22 and most Bun versions). */
 const decryptNative = ({ ciphertext, iv, keyBuffer }: CipherParts): string => {
   const decipher = createDecipheriv("aes-128-cbc", keyBuffer, iv);
-  return Buffer.concat([
-    decipher.update(ciphertext),
-    decipher.final(),
-  ]).toString("utf8");
+  return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString("utf8");
 };
 
 /**
@@ -140,9 +132,6 @@ export const encryptTokenString = ({
   const keyBuffer = Buffer.from(deriveKey(apiKey), "hex");
   const iv = randomBytes(16);
   const cipher = createCipheriv("aes-128-cbc", keyBuffer, iv);
-  const encrypted = Buffer.concat([
-    cipher.update(plaintext, "utf8"),
-    cipher.final(),
-  ]);
+  const encrypted = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
   return Buffer.concat([iv, encrypted]).toString("hex");
 };

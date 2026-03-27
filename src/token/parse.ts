@@ -5,20 +5,13 @@ import { TokenPayloadSchema } from "src/schemas/shared/token";
 import { decryptTokenString, encryptTokenString } from "./crypto";
 
 /** Decrypt the token string, wrapping errors as AssemblyInvalidTokenError. */
-export const decrypt = ({
-  apiKey,
-  token,
-}: {
-  apiKey: string;
-  token: string;
-}): string => {
+export const decrypt = ({ apiKey, token }: { apiKey: string; token: string }): string => {
   try {
     return decryptTokenString({ apiKey, encryptedToken: token });
   } catch (error) {
     throw new AssemblyInvalidTokenError({
       cause: error,
-      message:
-        "Failed to decrypt token — verify the API key and token are correct",
+      message: "Failed to decrypt token — verify the API key and token are correct",
     });
   }
 };

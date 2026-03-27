@@ -30,7 +30,6 @@ export const TokenPayloadSchema: z.ZodType<TokenPayload> = z
       val.internalUserId !== undefined ||
       (val.clientId !== undefined && val.companyId !== undefined),
     {
-      message:
-        "Token must contain either internalUserId, or clientId and companyId",
-    }
+      message: "Token must contain either internalUserId, or clientId and companyId",
+    },
   );

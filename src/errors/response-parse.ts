@@ -3,10 +3,7 @@ import type { AssemblyErrorOptions } from "src/errors/base";
 import { z } from "zod";
 import type { ZodError } from "zod";
 
-export interface AssemblyResponseParseErrorOptions extends Omit<
-  AssemblyErrorOptions,
-  "cause"
-> {
+export interface AssemblyResponseParseErrorOptions extends Omit<AssemblyErrorOptions, "cause"> {
   cause: ZodError;
 }
 
@@ -17,8 +14,7 @@ export class AssemblyResponseParseError extends AssemblyError {
     super({
       cause,
       details,
-      message:
-        message ?? "Assembly API response did not match the expected schema",
+      message: message ?? "Assembly API response did not match the expected schema",
       statusCode: 500,
     });
     this.name = "AssemblyResponseParseError";
