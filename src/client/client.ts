@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 
 import { assemblyApi } from "@assembly-js/node-sdk";
+import { AssemblyNoTokenError } from "src/errors/no-token";
 import { AppConnectionsResource } from "src/lib/modules/app-connections/resource";
 import { AppInstallsResource } from "src/lib/modules/app-installs/resource";
 import { ClientsResource } from "src/lib/modules/clients/resource";
@@ -106,6 +107,16 @@ export class AssemblyKit {
 
   constructor(options: AssemblyKitOptions) {
     this.currentToken = options.token;
+
+    const envMode: string | undefined = process.env.ASSEMBLY_ENV ?? process.env.COPILOT_ENV;
+    const isLocal: boolean = ["local", "__SECRET_STAGING__"].includes(envMode ?? "");
+
+    if (!options.token && !isLocal) {
+      throw new AssemblyNoTokenError({
+        message:
+          "A token is required when ASSEMBLY_ENV is not 'local'. Set ASSEMBLY_ENV=local for token-less development.",
+      });
+    }
 
     const sdk = assemblyApi({ apiKey: options.apiKey, token: options.token });
     const validate = options.validateResponses ?? true;
