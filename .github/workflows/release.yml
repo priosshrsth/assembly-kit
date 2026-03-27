@@ -57,3 +57,5 @@ jobs:
 
       - name: Publish packages to npm
         run: bun pm pack && npm publish ./*.tgz --access public --provenance
+        env:
+          NPM_CONFIG_PROVENANCE: true

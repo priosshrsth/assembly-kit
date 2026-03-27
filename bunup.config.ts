@@ -13,7 +13,7 @@ const bunupConfig = defineConfig({
   format: "esm",
   minify: true,
   sourcemap: true,
-  splitting: true,
+  splitting: false,
   target: "node",
 });
 
