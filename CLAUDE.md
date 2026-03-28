@@ -1,137 +1,169 @@
-# CLAUDE.md
+# assembly-kit
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+TypeScript SDK for the Assembly platform. ESM-only, Node.js 18+ and Bun.
 
-## Commands
-
-```bash
-pnpm run build         # Build all entry points to dist/ via vp pack
-pnpm run dev           # Build in watch mode
-pnpm test              # Run tests via vp test
-pnpm run check         # Lint + format + type check via vp check
-pnpm run release       # Bump version, commit, push, tag via bumpp
-```
-
-Pre-commit hook runs `vp check --fix` on staged files.
-
-After any significant code change, always run `vp check --fix` to ensure lint, formatting, and type checking pass before committing.
-
-## Documentation Rules
-
-After any significant code change, update the following:
-
-1. **`docs/progress.md`** — mark completed features, update status
-2. **`README.md`** — keep usage examples and API docs current
-3. **Feature-specific docs** — if README.md grows too large, create docs under `docs/` (e.g. `docs/app-bridge.md`) and link from the main README
-
-Always keep docs in sync with the code. Do not defer documentation to a later step.
-
-## Architecture
-
-`assembly-kit` is a TypeScript-first SDK for the Assembly platform. It is an **ESM-only single package** with 6 entry points, targeting Node.js 18+, Node.js 24+, and Bun.
-
-### Entry Points
-
-| Export                         | Purpose                                                                                |
-| ------------------------------ | -------------------------------------------------------------------------------------- |
-| `assembly-kit`                 | `createAssemblyKit()`, error classes, token utilities, `paginate()`                    |
-| `assembly-kit/schemas`         | All Zod schemas and inferred types (no client dependency)                              |
-| `assembly-kit/app-bridge`      | Framework-agnostic `sendToParent()` postMessage utilities                              |
-| `assembly-kit/bridge-ui`       | React hooks wrapping app-bridge (`usePrimaryCta`, `useSecondaryCta`, `useActionsMenu`) |
-| `assembly-kit/assembly-client` | `createAssemblyClient()` — retry wrapper around `@assembly-js/node-sdk`                |
-| `assembly-kit/react`           | React Server Component cached singletons (`getAssemblyKit`, `getAssemblyToken`, etc.)  |
-
-### Source Layer Dependency Order
-
-```
-src/errors/            ← base AssemblyError class + all subclasses
-src/schemas/shared/    ← shared cross-module schemas: hex-color, membership-type, token
-src/token/             ← optional standalone utilities: parseToken(), createToken(), guards, crypto (NOT used by createAssemblyKit)
-src/transport/         ← ky HTTP client + p-throttle rate limiter + error mapper
-src/pagination/        ← paginate() AsyncIterable cursor helper
-src/modules/           ← 27 co-located modules, each with schema.ts + resource.ts + index.ts
-src/assembly-kit/      ← createAssemblyKit() factory + AssemblyKitClient class (workspaceId is required, token is opaque)
-src/assembly-client/   ← createAssemblyClient() wrapper around @assembly-js/node-sdk
-src/react/             ← React `cache` wrappers for token, assembly-kit, assembly-client
-src/app-bridge/        ← parallel track, no dependency on layers above
-src/bridge-ui/         ← depends on app-bridge only
-```
-
-### Zod Version
-
-This project uses **Zod 4** (`^4.3.6`). Do not use Zod 3 APIs.
-
-| Zod 3 (forbidden)      | Zod 4 (correct)          |
-| ---------------------- | ------------------------ |
-| `error.format()`       | `z.prettifyError(error)` |
-| `error.flatten()`      | `z.treeifyError(error)`  |
-| `import from "zod/v3"` | `import from "zod"`      |
-
-Always import from `"zod"` directly. `ZodError` can be imported as a type: `import type { ZodError } from "zod"`. Use `z.infer<typeof Schema>` for type inference.
-
-### TypeScript Requirements
-
-**`isolatedDeclarations` is enabled** in `tsconfig.json`. This means every exported binding must have an explicit type annotation — the compiler cannot infer types across module boundaries.
+## Quick Start
 
 ```ts
-// ✗ Wrong — type must not be inferred
-export const BASE_URL = "https://api.assembly.com";
+import { createAssemblyKit } from "@anitshrsth/assembly-kit";
 
-// ✓ Correct — type explicitly declared
-export const BASE_URL: string = "https://api.assembly.com";
+// With token (marketplace apps, portal users)
+const kit = createAssemblyKit({ apiKey: "your-key", token: encryptedToken });
 
-// ✗ Wrong — return type must not be inferred
-export function createFoo(x: string) {
-  return { x };
-}
+// With workspaceId only (server-to-server, local dev)
+const kit = createAssemblyKit({ apiKey: "your-key", workspaceId: "ws-123" });
+```
 
-// ✓ Correct — return type explicitly declared
-export function createFoo(x: string): { x: string } {
-  return { x };
+At least one of `token` or `workspaceId` is required. If both are provided, `token` takes precedence.
+
+## createAssemblyKit(options)
+
+| Option              | Type                  | Default | Description                                                                                          |
+| ------------------- | --------------------- | ------- | ---------------------------------------------------------------------------------------------------- |
+| `apiKey`            | `string`              | —       | Required. Assembly API key.                                                                          |
+| `token`             | `string`              | —       | Encrypted token. Takes precedence over `workspaceId`.                                                |
+| `workspaceId`       | `string`              | —       | Workspace ID. Required when `token` is not provided.                                                 |
+| `retry`             | `RetryOptions\|false` | `{}`    | Retry config (retries: 3, minTimeout: 1000ms, maxTimeout: 5000ms, factor: 2), or `false` to disable. |
+| `validateResponses` | `boolean`             | `true`  | Validate all API responses through Zod schemas.                                                      |
+
+## Resource Namespaces
+
+Access API resources via `kit.<namespace>.<method>()`:
+
+| Namespace               | Methods                                                            |
+| ----------------------- | ------------------------------------------------------------------ |
+| `workspace`             | `retrieve()`                                                       |
+| `clients`               | `list()` `retrieve()` `create()` `delete()` `listAll()`            |
+| `companies`             | `list()` `retrieve()` `create()` `update()` `delete()` `listAll()` |
+| `internalUsers`         | `list()` `retrieve()` `listAll()`                                  |
+| `notes`                 | `list()` `retrieve()` `create()` `update()` `delete()` `listAll()` |
+| `tasks`                 | `list()` `retrieve()` `create()` `update()` `delete()` `listAll()` |
+| `taskTemplates`         | `list()` `retrieve()` `listAll()`                                  |
+| `invoices`              | `list()` `retrieve()` `create()` `listAll()`                       |
+| `invoiceTemplates`      | `list()` `listAll()`                                               |
+| `subscriptions`         | `list()` `retrieve()` `create()` `cancel()` `listAll()`            |
+| `subscriptionTemplates` | `list()` `listAll()`                                               |
+| `payments`              | `list()` `listAll()`                                               |
+| `products`              | `list()` `retrieve()` `listAll()`                                  |
+| `prices`                | `list()` `retrieve()` `listAll()`                                  |
+| `contracts`             | `retrieve()` `send()`                                              |
+| `contractTemplates`     | `list()` `retrieve()`                                              |
+| `forms`                 | `list()` `retrieve()` `listAll()`                                  |
+| `formResponses`         | `list()` `create()`                                                |
+| `files`                 | `list()` `retrieve()` `delete()` `listAll()`                       |
+| `fileChannels`          | `list()` `retrieve()` `create()` `listAll()`                       |
+| `messageChannels`       | `list()` `retrieve()` `create()` `listAll()`                       |
+| `messages`              | `list()` `send()` `listAll()`                                      |
+| `events`                | `list()` `retrieve()` `create()` `listAll()`                       |
+| `notifications`         | `list()` `create()` `delete()` `markRead()` `markUnread()`         |
+| `customFields`          | `list()`                                                           |
+| `customFieldOptions`    | `list()`                                                           |
+| `appConnections`        | `list()` `create()`                                                |
+| `appInstalls`           | `list()` `retrieve()`                                              |
+
+## Pagination
+
+`listAll()` auto-paginates and returns `Promise<T[]>`. For manual pagination use `list()` and handle `nextToken`:
+
+```ts
+const allCompanies = await kit.companies.listAll();
+const page = await kit.companies.list({ limit: 100 });
+if (page.nextToken) {
+  const next = await kit.companies.list({ limit: 100, nextToken: page.nextToken });
 }
 ```
 
-This applies to every `export const`, `export function`, `export class`, and `export type` in the codebase.
+## Token Utilities
 
-### Key Technical Decisions
+Standalone token decryption (not required for normal SDK usage):
 
-**HTTP:** `ky` (fetch-based, ESM). Auth header is `X-API-Key: <compoundKey>` — **not** `Authorization: Bearer`. Also send `X-Assembly-SDK-Version` on every request.
+```ts
+import { AssemblyToken, createToken } from "@anitshrsth/assembly-kit";
 
-**Compound key format:**
+const token = new AssemblyToken({ token: encryptedHex, apiKey });
+token.workspaceId; // string
+token.clientId; // string | undefined
+token.companyId; // string | undefined
+token.internalUserId; // string | undefined
+token.isClientUser; // boolean
+token.isInternalUser; // boolean
 
-- With `tokenId`: `${workspaceId}/${apiKey}/${tokenId}`
-- Without `tokenId`: `${workspaceId}/${apiKey}`
+const client = token.ensureIsClient(); // ClientTokenPayload (throws if not client)
+const internal = token.ensureIsInternalUser(); // InternalUserTokenPayload (throws if not internal)
 
-**Rate limiting:** `p-throttle` (sliding window, 20 req/s default). Applied in ky's `beforeRequest` hook. No `bottleneck` — avoids fixed `minTime` penalty at low request rates.
+// Encrypt a payload into a token
+const encrypted = createToken({
+  payload: { workspaceId: "ws-123", clientId: "cl-1", companyId: "co-1" },
+  apiKey,
+});
+```
 
-**No module-level singletons.** Every `createAssemblyKit()` creates a fresh transport and rate limiter. This is critical for serverless safety (Vercel, Cloudflare Workers).
+## Error Handling
 
-**`workspaceId` is required.** Every `createAssemblyKit()` call requires an explicit `workspaceId` parameter. The compound key is always `${workspaceId}/${apiKey}` (or `${workspaceId}/${apiKey}/${tokenId}`). Raw apiKey alone is never sent.
+All errors extend `AssemblyError`. Import from `@anitshrsth/assembly-kit`:
 
-**Token is opaque.** The SDK does **not** decrypt or parse the token. It is received as-is (required for marketplace apps, optional otherwise). Token decryption utilities (`parseToken`, `createToken`) are available as optional standalone exports for apps that need to inspect token contents.
+```ts
+import {
+  AssemblyError, // base class (statusCode, details)
+  AssemblyNoTokenError, // 400 — token required but missing
+  AssemblyInvalidTokenError, // 401 — token decryption/validation failed
+  AssemblyUnauthorizedError, // 401 — API key rejected or identity assertion failed
+  AssemblyForbiddenError, // 403 — insufficient permissions
+  AssemblyNotFoundError, // 404 — resource not found
+  AssemblyValidationError, // 422 — request payload rejected
+  AssemblyRateLimitError, // 429 — rate limited (.retryAfter?: number)
+  AssemblyServerError, // 500 — server error
+  AssemblyResponseParseError, // 500 — Zod validation failed (.zodError)
+  AssemblyConnectionError, // 503 — network error
+} from "@anitshrsth/assembly-kit";
 
-**Token decryption utilities** (standalone, not used by `createAssemblyKit`):
+try {
+  await kit.companies.retrieve(id);
+} catch (err) {
+  if (err instanceof AssemblyRateLimitError) {
+    // err.retryAfter — seconds until retry
+  } else if (err instanceof AssemblyError) {
+    // err.message, err.statusCode, err.details
+  }
+}
+```
 
-1. HMAC-SHA256(apiKey).hex.slice(0,32) → 128-bit key
-2. AES-128-CBC decrypt: first 16 bytes of hex blob = IV, rest = ciphertext
-3. Dual strategy: native autoPadding first, manual PKCS7 fallback for Node 24 (OpenSSL 3.4/3.5)
-4. JSON.parse → validate with `TokenPayloadSchema` (unknown fields silently dropped)
+## Schemas
 
-Always import crypto as `import { ... } from 'node:crypto'` (explicit `node:` prefix for Bun + Node compat).
+Zod 4 schemas and inferred types for all resources:
 
-**`isMarketplaceApp` flag:** When `true`, a token is required at `createAssemblyKit()` construction time. When `false`, token is optional but endpoints requiring user context throw `AssemblyNoTokenError` at call time.
+```ts
+import { ClientSchema, CompanySchema, TaskSchema } from "@anitshrsth/assembly-kit/schemas";
+import type { Client, Company, Task } from "@anitshrsth/assembly-kit/schemas";
 
-**`validateResponses` flag:** When `true` (default), all API responses are parsed through Zod schemas. Failed parses throw `AssemblyResponseParseError` (which carries the `ZodError`). Set to `false` to skip parsing for performance or trusted environments.
+// Response schemas (paginated)
+import { ClientsResponseSchema } from "@anitshrsth/assembly-kit/schemas";
 
-### Testing
+// Request schemas
+import { ClientCreateRequestSchema } from "@anitshrsth/assembly-kit/schemas";
+```
 
-- `bun test` — zero real HTTP calls. The transport accepts an injectable `fetch` function; tests pass mock fetch implementations.
-- Token tests use pre-generated fixtures in `tests/fixtures/tokens.ts` — real encrypted tokens produced from the known test API key, covering client user, internal user, tokenId, baseUrl, and block-aligned payloads (the Node 24 PKCS7 edge case).
+## Multi-Workspace (React Server Components)
 
-### Planning Docs
+Use React `cache()` to deduplicate per request:
 
-Full feature specs and implementation sequencing are in `docs/planning/`:
+```ts
+import { cache } from "react";
+import { createAssemblyKit } from "@anitshrsth/assembly-kit";
 
-- `prd.md` — requirements for all features including error hierarchy, token payload shape, resource methods, app-bridge payload types
-- `implementation-plan.md` — step-by-step implementation guide with concrete code patterns per feature
-- `node-sdk-internals.md` — verified token decryption algorithm internals
+export const getAssemblyKit = cache((apiKey: string, workspaceId: string) =>
+  createAssemblyKit({ apiKey, workspaceId }),
+);
+```
+
+## Entry Points
+
+| Import path                          | Key exports                                                                                               |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| `@anitshrsth/assembly-kit`           | `createAssemblyKit`, `AssemblyKit`, errors, schemas, token utils                                          |
+| `@anitshrsth/assembly-kit/schemas`   | All Zod schemas and inferred types                                                                        |
+| `@anitshrsth/assembly-kit/client`    | `createAssemblyKit`, `AssemblyKit`, `AssemblyKitOptions`                                                  |
+| `@anitshrsth/assembly-kit/errors`    | All error classes                                                                                         |
+| `@anitshrsth/assembly-kit/token`     | `AssemblyToken`, `createToken`                                                                            |
+| `@anitshrsth/assembly-kit/logger`    | `createLogger`, `logger` (requires pino peer dep)                                                         |
+| `@anitshrsth/assembly-kit/bridge-ui` | `usePrimaryCta`, `useSecondaryCta`, `useActionsMenu` (requires react + @assembly-js/app-bridge peer deps) |
