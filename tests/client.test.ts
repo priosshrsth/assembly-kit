@@ -25,49 +25,44 @@ vi.mock("src/token/assembly-token", () => ({
   },
 }));
 
-import { AssemblyKit } from "src/client";
+import { AssemblyKit, createAssemblyKit } from "src/client";
 
-/** Run `fn` in a fresh async context (isolated from the test runner's context). */
-const inFreshContext = (fn: () => void): Promise<void> =>
-  new Promise<void>((resolve) => {
-    setTimeout(() => {
-      fn();
-      resolve();
-    }, 0);
+// --- createAssemblyKit -------------------------------------------------------
+
+describe("createAssemblyKit", () => {
+  it("returns an AssemblyKit instance", () => {
+    const kit = createAssemblyKit({ apiKey: "test-key", workspaceId: "ws-1" });
+    expect(kit).toBeInstanceOf(AssemblyKit);
   });
 
-// --- Singleton (.new) --------------------------------------------------------
-
-describe("AssemblyKit.new", () => {
-  const opts = { apiKey: "test-key" };
-
-  it("returns the same instance on repeated .new() calls", async () => {
-    await inFreshContext(() => {
-      const first = AssemblyKit.new(opts);
-      const second = AssemblyKit.new(opts);
-      expect(second).toBe(first);
-    });
+  it("returns a new instance on each call", () => {
+    const opts = { apiKey: "test-key", workspaceId: "ws-1" } as const;
+    const first = createAssemblyKit(opts);
+    const second = createAssemblyKit(opts);
+    expect(second).not.toBe(first);
   });
 
-  it("creates a new instance when token changes", async () => {
-    await inFreshContext(() => {
-      const first = AssemblyKit.new({ apiKey: "test-key", token: "token-a" });
-      const second = AssemblyKit.new({ apiKey: "test-key", token: "token-b" });
-      expect(second).not.toBe(first);
-    });
+  it("accepts token instead of workspaceId", () => {
+    const kit = createAssemblyKit({ apiKey: "test-key", token: "some-token" });
+    expect(kit).toBeInstanceOf(AssemblyKit);
+    expect(kit.currentToken).toBe("some-token");
   });
 
-  it("different async contexts get different instances", async () => {
-    const instances: AssemblyKit[] = [];
-    await Promise.all([
-      inFreshContext(() => {
-        instances.push(AssemblyKit.new(opts));
-      }),
-      inFreshContext(() => {
-        instances.push(AssemblyKit.new(opts));
-      }),
-    ]);
-    expect(instances[0]).not.toBe(instances[1]);
+  it("accepts both token and workspaceId (token takes precedence)", () => {
+    const kit = createAssemblyKit({ apiKey: "test-key", token: "some-token", workspaceId: "ws-1" });
+    expect(kit).toBeInstanceOf(AssemblyKit);
+    expect(kit.currentToken).toBe("some-token");
+  });
+
+  it("throws when neither token nor workspaceId is provided", () => {
+    expect(() => createAssemblyKit({ apiKey: "test-key" })).toThrow(
+      "Either `token` or `workspaceId` must be provided.",
+    );
+  });
+
+  it("sets ASSEMBLY_ENV=local when using workspaceId without token", () => {
+    createAssemblyKit({ apiKey: "test-key", workspaceId: "ws-1" });
+    expect(process.env.ASSEMBLY_ENV).toBe("local");
   });
 });
 
@@ -95,6 +90,7 @@ describe("retry behavior", () => {
 
     const kit = new AssemblyKit({
       apiKey: "test-key",
+      workspaceId: "ws-1",
       retry: { maxTimeout: 50, minTimeout: 10, retries: 3 },
       validateResponses: false,
     });
@@ -116,6 +112,7 @@ describe("retry behavior", () => {
 
     const kit = new AssemblyKit({
       apiKey: "test-key",
+      workspaceId: "ws-1",
       retry: { maxTimeout: 50, minTimeout: 10, retries: 3 },
       validateResponses: false,
     });
@@ -130,6 +127,7 @@ describe("retry behavior", () => {
 
     const kit = new AssemblyKit({
       apiKey: "test-key",
+      workspaceId: "ws-1",
       retry: { maxTimeout: 50, minTimeout: 10, retries: 3 },
       validateResponses: false,
     });
@@ -142,6 +140,7 @@ describe("retry behavior", () => {
 
     const kit = new AssemblyKit({
       apiKey: "test-key",
+      workspaceId: "ws-1",
       retry: { maxTimeout: 50, minTimeout: 10, retries: 2 },
       validateResponses: false,
     });
@@ -158,6 +157,7 @@ describe("retry behavior", () => {
 
     const kit = new AssemblyKit({
       apiKey: "test-key",
+      workspaceId: "ws-1",
       retry: false,
       validateResponses: false,
     });

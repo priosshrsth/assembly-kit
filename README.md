@@ -16,14 +16,21 @@ npm install @anitshrsth/assembly-kit
 
 ### Client
 
-Create an SDK client with `new AssemblyKit()`. Each call produces an independent instance (safe for serverless environments).
+Create an SDK client with `createAssemblyKit()`. At least one of `token` or `workspaceId` must be provided:
 
 ```typescript
-import { AssemblyKit } from "@anitshrsth/assembly-kit";
+import { createAssemblyKit } from "@anitshrsth/assembly-kit";
 
-const kit = new AssemblyKit({
+// With token (e.g. marketplace apps, portal users)
+const kit = createAssemblyKit({
   apiKey: "your-api-key",
-  token: encryptedToken, // required unless ASSEMBLY_ENV=local
+  token: encryptedToken,
+});
+
+// With workspaceId only (server-to-server, local dev)
+const kit = createAssemblyKit({
+  apiKey: "your-api-key",
+  workspaceId: "ws-123",
 });
 
 // Access resources via namespaces
@@ -32,33 +39,61 @@ const companies = await kit.companies.list();
 const task = await kit.tasks.create({ title: "Follow up", ... });
 ```
 
-#### Request-scoped singleton
+When only `workspaceId` is provided (no token), the SDK automatically sets `ASSEMBLY_ENV=local` at runtime and builds the compound key as `workspaceId/apiKey`.
 
-For serverless / Vercel fluid compute, use `AssemblyKit.new()` instead of `new AssemblyKit()`. It returns the existing instance for the current async context if the token matches, avoiding redundant allocations:
+#### Multiple workspaces
+
+Each `createAssemblyKit()` call returns a fully independent client. To work with multiple workspaces or API keys, create one instance per credential set.
+
+**React Server Components (recommended):** Use React's `cache()` to deduplicate instances per request. This is the idiomatic approach for Next.js App Router:
 
 ```typescript
-// Returns the same instance on repeated calls within the same async context
-const kit = AssemblyKit.new({ apiKey, token });
-const same = AssemblyKit.new({ apiKey, token }); // same instance
+// lib/assembly.ts
+import { cache } from "react";
+import { createAssemblyKit } from "@anitshrsth/assembly-kit";
+
+export const getAssemblyKit = cache((apiKey: string, workspaceId: string) =>
+  createAssemblyKit({ apiKey, workspaceId }),
+);
+
+// In any Server Component or server action:
+const kitA = getAssemblyKit("api-key-a", "ws-workspace-a");
+const kitB = getAssemblyKit("api-key-b", "ws-workspace-b");
+
+// Same args within the same request → same instance (deduplicated by React)
+const same = getAssemblyKit("api-key-a", "ws-workspace-a"); // === kitA
 ```
 
-#### Token requirement
-
-A token is required at construction time unless `ASSEMBLY_ENV=local` (or `ASSEMBLY_ENV=__SECRET_STAGING__`). Omitting the token in any other environment throws `AssemblyNoTokenError`:
+**Plain Node.js / Bun:** Manage your own singleton map:
 
 ```typescript
-// Throws AssemblyNoTokenError unless ASSEMBLY_ENV=local
-const kit = new AssemblyKit({ apiKey: "your-api-key" });
+import { createAssemblyKit } from "@anitshrsth/assembly-kit";
+import type { AssemblyKit } from "@anitshrsth/assembly-kit";
+
+const clients = new Map<string, AssemblyKit>();
+
+function getKit(apiKey: string, workspaceId: string): AssemblyKit {
+  const existing = clients.get(workspaceId);
+  if (existing) return existing;
+
+  const kit = createAssemblyKit({ apiKey, workspaceId });
+  clients.set(workspaceId, kit);
+  return kit;
+}
+
+const kitA = getKit("api-key-a", "ws-workspace-a");
+const kitB = getKit("api-key-b", "ws-workspace-b");
 ```
 
 #### Options
 
-| Option              | Type                  | Default   | Description                                                          |
-| ------------------- | --------------------- | --------- | -------------------------------------------------------------------- |
-| `apiKey`            | `string`              | —         | Required. Your Assembly API key.                                     |
-| `token`             | `string`              | —         | Encrypted token from Assembly. Required unless `ASSEMBLY_ENV=local`. |
-| `retry`             | `RetryOptions\|false` | see below | Retry config, or `false` to disable retry entirely.                  |
-| `validateResponses` | `boolean`             | `true`    | When true, all responses are validated through Zod schemas.          |
+| Option              | Type                  | Default   | Description                                                               |
+| ------------------- | --------------------- | --------- | ------------------------------------------------------------------------- |
+| `apiKey`            | `string`              | —         | Required. Your Assembly API key.                                          |
+| `token`             | `string`              | —         | Encrypted token from Assembly. Required if `workspaceId` is not provided. |
+| `workspaceId`       | `string`              | —         | Explicit workspace ID. Required if `token` is not provided.               |
+| `retry`             | `RetryOptions\|false` | see below | Retry config, or `false` to disable retry entirely.                       |
+| `validateResponses` | `boolean`             | `true`    | When true, all responses are validated through Zod schemas.               |
 
 **Default retry options:**
 
@@ -74,7 +109,7 @@ const kit = new AssemblyKit({ apiKey: "your-api-key" });
 When a token is provided, the decrypted payload is available directly on the instance:
 
 ```typescript
-const kit = new AssemblyKit({ apiKey, token });
+const kit = createAssemblyKit({ apiKey, token });
 
 kit.token; // AssemblyToken | undefined — the decrypted token instance
 kit.payload; // TokenPayload | undefined — the decrypted token payload
@@ -87,7 +122,7 @@ const internalPayload = kit.ensureIsInternalUser(); // InternalUserTokenPayload
 #### Disabling response validation
 
 ```typescript
-const kit = new AssemblyKit({
+const kit = createAssemblyKit({
   apiKey: "your-api-key",
   token: encryptedToken,
   validateResponses: false, // skip Zod parsing for performance
@@ -97,7 +132,7 @@ const kit = new AssemblyKit({
 #### Disabling retry
 
 ```typescript
-const kit = new AssemblyKit({
+const kit = createAssemblyKit({
   apiKey: "your-api-key",
   token: encryptedToken,
   retry: false,
@@ -144,7 +179,7 @@ Every resource that supports listing also exposes `listAll()`, which collects al
 ```typescript
 import { AssemblyKit } from "@anitshrsth/assembly-kit";
 
-const kit = new AssemblyKit({ apiKey, token });
+const kit = createAssemblyKit({ apiKey, token });
 
 // Returns Promise<Company[]> — all pages collected
 const allCompanies = await kit.companies.listAll();
@@ -464,15 +499,15 @@ useActionsMenu([{ label: "Archive", onClick: () => archive() }], hasItems);
 
 ## Entry Points
 
-| Import path                          | Exports                                                                          |
-| ------------------------------------ | -------------------------------------------------------------------------------- |
-| `@anitshrsth/assembly-kit`           | `AssemblyKit`, all errors, all schemas, `AssemblyToken`, `createToken`           |
-| `@anitshrsth/assembly-kit/client`    | `AssemblyKit`, `AssemblyKitOptions`, `RetryOptions`                              |
-| `@anitshrsth/assembly-kit/errors`    | All error classes                                                                |
-| `@anitshrsth/assembly-kit/schemas`   | All Zod schemas and inferred types (no client dependency)                        |
-| `@anitshrsth/assembly-kit/token`     | `AssemblyToken`, `createToken`, `ClientTokenPayload`, `InternalUserTokenPayload` |
-| `@anitshrsth/assembly-kit/logger`    | `createLogger`, `logger`                                                         |
-| `@anitshrsth/assembly-kit/bridge-ui` | `usePrimaryCta`, `useSecondaryCta`, `useActionsMenu`                             |
+| Import path                          | Exports                                                                                     |
+| ------------------------------------ | ------------------------------------------------------------------------------------------- |
+| `@anitshrsth/assembly-kit`           | `createAssemblyKit`, `AssemblyKit`, all errors, all schemas, `AssemblyToken`, `createToken` |
+| `@anitshrsth/assembly-kit/client`    | `createAssemblyKit`, `AssemblyKit`, `AssemblyKitOptions`, `RetryOptions`                    |
+| `@anitshrsth/assembly-kit/errors`    | All error classes                                                                           |
+| `@anitshrsth/assembly-kit/schemas`   | All Zod schemas and inferred types (no client dependency)                                   |
+| `@anitshrsth/assembly-kit/token`     | `AssemblyToken`, `createToken`, `ClientTokenPayload`, `InternalUserTokenPayload`            |
+| `@anitshrsth/assembly-kit/logger`    | `createLogger`, `logger`                                                                    |
+| `@anitshrsth/assembly-kit/bridge-ui` | `usePrimaryCta`, `useSecondaryCta`, `useActionsMenu`                                        |
 
 ## Development
 

@@ -12,7 +12,8 @@
     "url": "git+https://github.com/priosshrsth/assembly-kit.git"
   },
   "files": [
-    "dist"
+    "dist",
+    "CLAUDE.md"
   ],
   "type": "module",
   "exports": {

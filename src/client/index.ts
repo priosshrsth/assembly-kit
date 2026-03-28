@@ -1,5 +1,3 @@
-import { AsyncLocalStorage } from "node:async_hooks";
-
 import { assemblyApi } from "@assembly-js/node-sdk";
 import { AssemblyNoTokenError } from "src/errors/no-token";
 import type { TokenPayload } from "src/schemas/shared/token";
@@ -38,46 +36,34 @@ import { DEFAULT_RETRY } from "./options";
 import type { AssemblyKitOptions } from "./options";
 
 /**
+ * Create a new `AssemblyKit` instance. Each call produces an independent client
+ * with its own credentials — safe for multi-workspace and serverless usage.
+ *
+ * @example
+ * ```ts
+ * const kit = createAssemblyKit({ apiKey: "your-key", token: encryptedToken });
+ * const workspace = await kit.workspace.retrieve();
+ * ```
+ */
+export function createAssemblyKit(options: AssemblyKitOptions): AssemblyKit {
+  return new AssemblyKit(options);
+}
+
+/**
  * Assembly SDK client with typed resource namespaces and Zod response validation.
  *
  * Wraps `@assembly-js/node-sdk` and organizes its flat methods into resource
  * namespaces. Each method optionally validates the response through a Zod schema.
  *
- * **Global singleton caveat:** The underlying SDK mutates a global `OpenAPI` config
- * object, so multiple `AssemblyKit` instances with different credentials will
- * interfere with each other. Use a single instance per credential set.
+ * **Multi-workspace:** Each instance is fully independent — create one per
+ * API key / workspace pair. Manage your own singletons as needed (e.g. a `Map`).
  *
  * @example
  * ```ts
- * // Request-scoped singleton (recommended for serverless / Vercel fluid compute)
- * const kit = AssemblyKit.new({ apiKey, token });
- * const same = AssemblyKit.new({ apiKey, token }); // returns the same instance
- *
- * // Direct instantiation (always creates a new instance)
- * const kit = new AssemblyKit({ apiKey: "your-key", token: "encrypted-token" });
+ * const kit = createAssemblyKit({ apiKey: "your-key", token: "encrypted-token" });
  * ```
  */
 export class AssemblyKit {
-  static readonly #store: AsyncLocalStorage<AssemblyKit> = new AsyncLocalStorage<AssemblyKit>();
-
-  /**
-   * Get or create a request-scoped `AssemblyKit` instance via `AsyncLocalStorage`.
-   * Returns the existing instance if one exists with the same token. If the token
-   * differs, a new instance is created and replaces the previous one.
-   * Safe for Vercel fluid compute — no shared state across requests.
-   *
-   * @returns The `AssemblyKit` instance for the current async context.
-   */
-  static new(options: AssemblyKitOptions): AssemblyKit {
-    const existing = AssemblyKit.#store.getStore();
-    if (existing && existing.currentToken === options.token) {
-      return existing;
-    }
-    const instance = new AssemblyKit(options);
-    AssemblyKit.#store.enterWith(instance);
-    return instance;
-  }
-
   readonly currentToken: string | undefined;
   /** The decrypted AssemblyToken instance, or undefined when no token was provided. */
   readonly token: AssemblyToken | undefined;
@@ -113,27 +99,34 @@ export class AssemblyKit {
   readonly workspace: WorkspaceResource;
 
   constructor(options: AssemblyKitOptions) {
-    this.currentToken = options.token;
-
-    const envMode: string | undefined = process.env.ASSEMBLY_ENV ?? process.env.COPILOT_ENV;
-    const isLocal: boolean = ["local", "__SECRET_STAGING__"].includes(envMode ?? "");
-
-    if (!options.token && !isLocal) {
+    if (!options.token && !options.workspaceId) {
       throw new AssemblyNoTokenError({
-        message:
-          "A token is required when ASSEMBLY_ENV is not 'local'. Set ASSEMBLY_ENV=local for token-less development.",
+        message: "Either `token` or `workspaceId` must be provided.",
       });
     }
 
+    this.currentToken = options.token;
+
     if (options.token) {
+      // Token mode: decrypt token to get payload + let the underlying SDK build the compound key.
       this.token = new AssemblyToken({ token: options.token, apiKey: options.apiKey });
       this.payload = this.token.payload;
     } else {
+      // Workspace-only mode: no token to decrypt.
       this.token = undefined;
       this.payload = undefined;
     }
 
-    const sdk = assemblyApi({ apiKey: options.apiKey, token: options.token });
+    // When no token is provided, set ASSEMBLY_ENV=local so the underlying SDK
+    // accepts the raw apiKey, then pass the compound key (workspaceId/apiKey)
+    // as the apiKey directly.
+    let sdkApiKey: string = options.apiKey;
+    if (!options.token) {
+      process.env.ASSEMBLY_ENV = "local";
+      sdkApiKey = `${options.workspaceId}/${options.apiKey}`;
+    }
+
+    const sdk = assemblyApi({ apiKey: sdkApiKey, token: options.token });
     const validate = options.validateResponses ?? true;
     const retry = options.retry === false ? false : { ...DEFAULT_RETRY, ...options.retry };
 

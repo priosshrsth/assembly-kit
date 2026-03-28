@@ -17,12 +17,20 @@ export const DEFAULT_RETRY: RetryOptions = {
   retries: 3,
 };
 
-/** Options for `new AssemblyKit()`. */
+/**
+ * Options for `createAssemblyKit()`.
+ *
+ * At least one of `token` or `workspaceId` must be provided at runtime.
+ * If both are provided, `token` takes precedence (workspaceId is ignored).
+ * If only `workspaceId` is provided, the compound key is built as `workspaceId/apiKey`.
+ */
 export interface AssemblyKitOptions {
   /** Assembly API key. */
   apiKey: string;
-  /** Optional encrypted token for marketplace apps. */
+  /** Encrypted token from Assembly. Takes precedence over `workspaceId` when provided. */
   token?: string;
+  /** Workspace ID. Required when `token` is not provided. Ignored when `token` is present. */
+  workspaceId?: string;
   /** Retry configuration, or `false` to disable retry entirely. */
   retry?: RetryOptions | false;
   /** When true, all responses are validated through Zod schemas. Default: true. */
