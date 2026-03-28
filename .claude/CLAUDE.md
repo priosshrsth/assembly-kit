@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+> **Note:** The root `CLAUDE.md` is a **consumer-facing** file that ships with the npm package.
+> It is read by AI assistants in projects that depend on `@anitshrsth/assembly-kit`.
+> This file (`.claude/CLAUDE.md`) is the **contributor-facing** file for repo development.
+
 ## Commands
 
 ```bash
@@ -22,7 +26,8 @@ After any significant code change, update the following:
 
 1. **`docs/progress.md`** — mark completed features, update status
 2. **`README.md`** — keep usage examples and API docs current
-3. **Feature-specific docs** — if README.md grows too large, create docs under `docs/` (e.g. `docs/app-bridge.md`) and link from the main README
+3. **`CLAUDE.md` (root)** — update the consumer-facing SDK reference when public API surface changes (new resources, changed options, new entry points, new error classes)
+4. **Feature-specific docs** — if README.md grows too large, create docs under `docs/` (e.g. `docs/app-bridge.md`) and link from the main README
 
 Always keep docs in sync with the code. Do not defer documentation to a later step.
 
