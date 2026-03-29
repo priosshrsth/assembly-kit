@@ -1,6 +1,8 @@
-import { BaseResource } from "src/client/base-resource";
 import { paginate } from "src/lib/pagination";
 import type { ListArgs } from "src/lib/pagination";
+import { buildSearchParams } from "src/transport/build-search-params";
+import type { Transport } from "src/transport/http";
+import { parseResponse } from "src/transport/parse-response";
 
 import { MessageResponseSchema, MessagesResponseSchema } from "./schema";
 import type { Message, MessagesResponse, SendMessageRequest } from "./schema";
@@ -9,17 +11,33 @@ export interface ListMessagesArgs extends ListArgs {
   channelId: string;
 }
 
-export class MessagesResource extends BaseResource {
+export class MessagesResource {
+  readonly #transport: Transport;
+  readonly #validate: boolean;
+
+  constructor({
+    transport,
+    validateResponses,
+  }: {
+    transport: Transport;
+    validateResponses: boolean;
+  }) {
+    this.#transport = transport;
+    this.#validate = validateResponses;
+  }
+
   /** Send a message. */
   async send(body: SendMessageRequest): Promise<Message> {
-    const raw = await this.sdk.sendMessage({ requestBody: body });
-    return this.parse(MessageResponseSchema, raw);
+    const raw: unknown = await this.#transport.post("v1/messages", body);
+    return parseResponse({ schema: MessageResponseSchema, data: raw, validate: this.#validate });
   }
 
   /** List messages in a channel. */
   async list(args: ListMessagesArgs): Promise<MessagesResponse> {
-    const raw = await this.sdk.listMessages(args);
-    return this.parse(MessagesResponseSchema, raw);
+    const raw: unknown = await this.#transport.get("v1/messages", {
+      searchParams: buildSearchParams(args),
+    });
+    return parseResponse({ schema: MessagesResponseSchema, data: raw, validate: this.#validate });
   }
 
   /** Iterate over all messages in a channel, automatically paginating. Default limit per page: 500. */

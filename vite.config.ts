@@ -37,6 +37,7 @@ export default defineConfig({
       "oxc/no-barrel-file": "off",
       "unicorn/filename-case": ["error", { case: "kebabCase" }],
       "typescript/consistent-type-imports": "error",
+      "oxc/import/no-duplicates": ["error", { preferInline: true }],
     },
   },
   fmt: {

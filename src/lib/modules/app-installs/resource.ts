@@ -1,18 +1,37 @@
-import { BaseResource } from "src/client/base-resource";
+import type { Transport } from "src/transport/http";
+import { parseResponse } from "src/transport/parse-response";
 
 import { AppInstallResponseSchema, AppInstallsResponseSchema } from "./schema";
 import type { AppInstall, AppInstallsResponse } from "./schema";
 
-export class AppInstallsResource extends BaseResource {
-  /** List all app installs. SDK returns a flat array; we wrap it for consistency. */
+export class AppInstallsResource {
+  readonly #transport: Transport;
+  readonly #validate: boolean;
+
+  constructor({
+    transport,
+    validateResponses,
+  }: {
+    transport: Transport;
+    validateResponses: boolean;
+  }) {
+    this.#transport = transport;
+    this.#validate = validateResponses;
+  }
+
+  /** List all app installs. */
   async list(): Promise<AppInstallsResponse> {
-    const raw = await this.sdk.listAppInstalls();
-    return this.parse(AppInstallsResponseSchema, { data: raw });
+    const raw: unknown = await this.#transport.get("v1/installs");
+    return parseResponse({
+      schema: AppInstallsResponseSchema,
+      data: raw,
+      validate: this.#validate,
+    });
   }
 
   /** Retrieve a single app install by ID. */
   async retrieve(installId: string): Promise<AppInstall> {
-    const raw = await this.sdk.retrieveAppInstall({ installId });
-    return this.parse(AppInstallResponseSchema, raw);
+    const raw: unknown = await this.#transport.get(`v1/installs/${installId}`);
+    return parseResponse({ schema: AppInstallResponseSchema, data: raw, validate: this.#validate });
   }
 }

@@ -1,6 +1,8 @@
-import { BaseResource } from "src/client/base-resource";
 import { paginate } from "src/lib/pagination";
 import type { ListArgs } from "src/lib/pagination";
+import { buildSearchParams } from "src/transport/build-search-params";
+import type { Transport } from "src/transport/http";
+import { parseResponse } from "src/transport/parse-response";
 
 import { TaskResponseSchema, TasksResponseSchema } from "./schema";
 import type { Task, TaskCreateRequest, TaskUpdateRequest, TasksResponse } from "./schema";
@@ -11,37 +13,50 @@ export interface ListTasksArgs extends ListArgs {
   status?: string;
 }
 
-export class TasksResource extends BaseResource {
-  /** Create a task. */
-  async create(body: TaskCreateRequest): Promise<Task> {
-    const raw = await this.sdk.createTask({ requestBody: body });
-    return this.parse(TaskResponseSchema, raw);
+export class TasksResource {
+  readonly #transport: Transport;
+  readonly #validate: boolean;
+
+  constructor({
+    transport,
+    validateResponses,
+  }: {
+    transport: Transport;
+    validateResponses: boolean;
+  }) {
+    this.#transport = transport;
+    this.#validate = validateResponses;
   }
 
-  /** List tasks with optional filters. Note: SDK method is named `retrieveTasks`. */
+  /** Create a task. */
+  async create(body: TaskCreateRequest): Promise<Task> {
+    const raw: unknown = await this.#transport.post("v1/tasks", body);
+    return parseResponse({ schema: TaskResponseSchema, data: raw, validate: this.#validate });
+  }
+
+  /** List tasks with optional filters. */
   async list(args: ListTasksArgs = {}): Promise<TasksResponse> {
-    const raw = await this.sdk.retrieveTasks(args);
-    return this.parse(TasksResponseSchema, raw);
+    const raw: unknown = await this.#transport.get("v1/tasks", {
+      searchParams: buildSearchParams(args),
+    });
+    return parseResponse({ schema: TasksResponseSchema, data: raw, validate: this.#validate });
   }
 
   /** Retrieve a single task by ID. */
   async retrieve(id: string): Promise<Task> {
-    const raw = await this.sdk.retrieveTask({ id });
-    return this.parse(TaskResponseSchema, raw);
+    const raw: unknown = await this.#transport.get(`v1/tasks/${id}`);
+    return parseResponse({ schema: TaskResponseSchema, data: raw, validate: this.#validate });
   }
 
   /** Update a task. */
   async update(args: { id: string; body: TaskUpdateRequest }): Promise<Task> {
-    const raw = await this.sdk.updateTask({
-      id: args.id,
-      requestBody: args.body,
-    });
-    return this.parse(TaskResponseSchema, raw);
+    const raw: unknown = await this.#transport.patch(`v1/tasks/${args.id}`, args.body);
+    return parseResponse({ schema: TaskResponseSchema, data: raw, validate: this.#validate });
   }
 
   /** Delete a task by ID. */
   async delete(id: string): Promise<void> {
-    await this.sdk.deleteTask({ id });
+    await this.#transport.delete(`v1/tasks/${id}`);
   }
 
   /** Iterate over all tasks, automatically paginating. Default limit per page: 500. */

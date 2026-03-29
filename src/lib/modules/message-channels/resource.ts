@@ -1,6 +1,8 @@
-import { BaseResource } from "src/client/base-resource";
 import { paginate } from "src/lib/pagination";
 import type { ListArgs } from "src/lib/pagination";
+import { buildSearchParams } from "src/transport/build-search-params";
+import type { Transport } from "src/transport/http";
+import { parseResponse } from "src/transport/parse-response";
 
 import { MessageChannelResponseSchema, MessageChannelsResponseSchema } from "./schema";
 import type {
@@ -9,28 +11,56 @@ import type {
   MessageChannelsResponse,
 } from "./schema";
 
-export class MessageChannelsResource extends BaseResource {
+export class MessageChannelsResource {
+  readonly #transport: Transport;
+  readonly #validate: boolean;
+
+  constructor({
+    transport,
+    validateResponses,
+  }: {
+    transport: Transport;
+    validateResponses: boolean;
+  }) {
+    this.#transport = transport;
+    this.#validate = validateResponses;
+  }
+
   /** Create a message channel. */
   async create(body: MessageChannelCreateRequest): Promise<MessageChannel> {
-    const raw = await this.sdk.createMessageChannel({ requestBody: body });
-    return this.parse(MessageChannelResponseSchema, raw);
+    const raw: unknown = await this.#transport.post("v1/message-channels", body);
+    return parseResponse({
+      schema: MessageChannelResponseSchema,
+      data: raw,
+      validate: this.#validate,
+    });
   }
 
   /** List message channels. */
   async list(args: ListArgs = {}): Promise<MessageChannelsResponse> {
-    const raw = await this.sdk.listMessageChannels(args);
-    return this.parse(MessageChannelsResponseSchema, raw);
+    const raw: unknown = await this.#transport.get("v1/message-channels", {
+      searchParams: buildSearchParams(args),
+    });
+    return parseResponse({
+      schema: MessageChannelsResponseSchema,
+      data: raw,
+      validate: this.#validate,
+    });
   }
 
   /** Retrieve a single message channel by ID. */
   async retrieve(id: string): Promise<MessageChannel> {
-    const raw = await this.sdk.retrieveMessageChannel({ id });
-    return this.parse(MessageChannelResponseSchema, raw);
+    const raw: unknown = await this.#transport.get(`v1/message-channels/${id}`);
+    return parseResponse({
+      schema: MessageChannelResponseSchema,
+      data: raw,
+      validate: this.#validate,
+    });
   }
 
   /** Iterate over all message channels, automatically paginating. Default limit per page: 500. */
   async listAll(args: Omit<ListArgs, "nextToken"> = {}): Promise<MessageChannel[]> {
-    return paginate((listArgs) => this.list({ ...listArgs }), {
+    return paginate((listArgs) => this.list({ ...args, ...listArgs }), {
       limit: args.limit ?? 500,
     });
   }

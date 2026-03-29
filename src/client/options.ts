@@ -1,38 +1,36 @@
-/** Retry configuration for the SDK client wrapper. */
-export interface RetryOptions {
-  /** Maximum number of retries. @default 3 */
-  retries?: number;
-  /** Minimum time between retries in ms. @default 1000 */
-  minTimeout?: number;
-  /** Maximum time between retries in ms. @default 5000 */
-  maxTimeout?: number;
-  /** Exponential backoff factor. @default 2 */
-  factor?: number;
-}
-
-export const DEFAULT_RETRY: RetryOptions = {
-  factor: 2,
-  maxTimeout: 5000,
-  minTimeout: 1000,
-  retries: 3,
-};
+import type { KitMode } from "src/constants/kit-mode";
 
 /**
  * Options for `createAssemblyKit()`.
  *
- * At least one of `token` or `workspaceId` must be provided at runtime.
- * If both are provided, `token` takes precedence (workspaceId is ignored).
- * If only `workspaceId` is provided, the compound key is built as `workspaceId/apiKey`.
+ * - `kitMode: "local"` (default) → only `apiKey` required. `workspaceId` and `token` are optional.
+ * - `kitMode: "marketplace"` → either `token` or `workspaceId` must be provided.
+ * - When `token` is provided, compound key is built from the decrypted token payload.
+ * - When only `workspaceId` is provided, compound key is `workspaceId/apiKey`.
+ * - When neither is provided (local mode), compound key is just `apiKey`.
  */
 export interface AssemblyKitOptions {
   /** Assembly API key. */
   apiKey: string;
-  /** Encrypted token from Assembly. Takes precedence over `workspaceId` when provided. */
+  /** Encrypted token from Assembly. */
   token?: string;
-  /** Workspace ID. Required when `token` is not provided. Ignored when `token` is present. */
+  /** Workspace ID. Optional — used to build compound key when token is not provided. */
   workspaceId?: string;
-  /** Retry configuration, or `false` to disable retry entirely. */
-  retry?: RetryOptions | false;
-  /** When true, all responses are validated through Zod schemas. Default: true. */
+  /**
+   * App mode.
+   * - `"local"` — only `apiKey` required. `workspaceId` and `token` optional.
+   * - `"marketplace"` — either `token` or `workspaceId` required.
+   * @default "local"
+   */
+  kitMode?: KitMode;
+  /** When true, API responses are validated through Zod schemas. @default true */
   validateResponses?: boolean;
+  /** Base URL for all API requests. @default "https://app.assembly.com/api" */
+  baseUrl?: string;
+  /** Number of retry attempts for retryable errors. @default 2 */
+  retryCount?: number;
+  /** Maximum requests per second for the rate limiter. @default 20 */
+  requestsPerSecond?: number;
+  /** Injectable fetch function for testing. Defaults to global fetch. */
+  fetch?: typeof globalThis.fetch;
 }
