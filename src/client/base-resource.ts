@@ -1,5 +1,5 @@
-import type { AssemblyAPI } from "@assembly-js/node-sdk";
 import pRetry from "p-retry";
+import type { AssemblySDK } from "src/sdk-init";
 import type { z } from "zod";
 
 import type { RetryOptions } from "./options";
@@ -17,7 +17,7 @@ const isRetryableError = (error: unknown): boolean => {
  * Wraps an SDK instance with a Proxy that retries every method call
  * on 429/5xx errors using p-retry.
  */
-const withRetry = (sdk: AssemblyAPI, retry: RetryOptions): AssemblyAPI =>
+const withRetry = (sdk: AssemblySDK, retry: RetryOptions): AssemblySDK =>
   new Proxy(sdk, {
     get(target, prop, receiver) {
       const value = Reflect.get(target, prop, receiver);
@@ -36,10 +36,10 @@ const withRetry = (sdk: AssemblyAPI, retry: RetryOptions): AssemblyAPI =>
   });
 
 export abstract class BaseResource {
-  protected readonly sdk: AssemblyAPI;
+  protected readonly sdk: AssemblySDK;
   protected readonly validateResponses: boolean;
 
-  constructor(sdk: AssemblyAPI, validateResponses: boolean, retry: RetryOptions | false) {
+  constructor(sdk: AssemblySDK, validateResponses: boolean, retry: RetryOptions | false) {
     this.sdk = retry === false ? sdk : withRetry(sdk, retry);
     this.validateResponses = validateResponses;
   }
