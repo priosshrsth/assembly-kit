@@ -29,17 +29,17 @@ const kit = createAssemblyKit({
 
 ## createAssemblyKit(options)
 
-| Option              | Type                      | Default                        | Description                                                |
-| ------------------- | ------------------------- | ------------------------------ | ---------------------------------------------------------- |
-| `apiKey`            | `string`                  | —                              | Required. Assembly API key.                                |
-| `token`             | `string`                  | —                              | Encrypted token. Takes precedence over `workspaceId`.      |
-| `workspaceId`       | `string`                  | —                              | Workspace ID. Required when `token` is not provided.       |
-| `kitMode`           | `KitMode`                 | `"local"`                      | `"local"` or `"marketplace"`. See Quick Start above.       |
-| `validateResponses` | `boolean`                 | `true`                         | Validate all API responses through Zod schemas.            |
-| `baseUrl`           | `string`                  | `https://app.assembly.com/api` | Base URL for all API requests.                             |
-| `retryCount`        | `number`                  | `2`                            | Number of retry attempts for retryable errors.             |
-| `requestsPerSecond` | `number`                  | `20`                           | Maximum requests per second (sliding-window rate limiter). |
-| `fetch`             | `typeof globalThis.fetch` | —                              | Injectable fetch function for testing.                     |
+| Option              | Type                      | Default                    | Description                                                |
+| ------------------- | ------------------------- | -------------------------- | ---------------------------------------------------------- |
+| `apiKey`            | `string`                  | —                          | Required. Assembly API key.                                |
+| `token`             | `string`                  | —                          | Encrypted token. Takes precedence over `workspaceId`.      |
+| `workspaceId`       | `string`                  | —                          | Workspace ID. Required when `token` is not provided.       |
+| `kitMode`           | `KitMode`                 | `"local"`                  | `"local"` or `"marketplace"`. See Quick Start above.       |
+| `validateResponses` | `boolean`                 | `true`                     | Validate all API responses through Zod schemas.            |
+| `baseUrl`           | `string`                  | `https://api.assembly.com` | Base URL for all API requests.                             |
+| `retryCount`        | `number`                  | `2`                        | Number of retry attempts for retryable errors.             |
+| `requestsPerSecond` | `number`                  | `20`                       | Maximum requests per second (sliding-window rate limiter). |
+| `fetch`             | `typeof globalThis.fetch` | —                          | Injectable fetch function for testing.                     |
 
 ## Resource Namespaces
 

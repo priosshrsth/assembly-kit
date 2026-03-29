@@ -25,7 +25,7 @@ export interface AssemblyKitOptions {
   kitMode?: KitMode;
   /** When true, API responses are validated through Zod schemas. @default true */
   validateResponses?: boolean;
-  /** Base URL for all API requests. @default "https://app.assembly.com/api" */
+  /** Base URL for all API requests. @default "https://api.assembly.com" */
   baseUrl?: string;
   /** Number of retry attempts for retryable errors. @default 2 */
   retryCount?: number;

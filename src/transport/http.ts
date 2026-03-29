@@ -9,7 +9,7 @@ import { AssemblyServerError } from "src/errors/server";
 import { AssemblyUnauthorizedError } from "src/errors/unauthorized";
 import { AssemblyValidationError } from "src/errors/validation";
 
-const DEFAULT_BASE_URL: string = "https://app.assembly.com/api";
+const DEFAULT_BASE_URL: string = "https://api.assembly.com";
 const DEFAULT_REQUESTS_PER_SECOND: number = 20;
 
 // ---------------------------------------------------------------------------
