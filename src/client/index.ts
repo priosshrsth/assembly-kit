@@ -1,5 +1,5 @@
-import { assemblyApi } from "@assembly-js/node-sdk";
 import { AssemblyNoTokenError } from "src/errors/no-token";
+import { initSdk } from "src/sdk-init";
 import type { TokenPayload } from "src/schemas/shared/token";
 import { AssemblyToken } from "src/token/assembly-token";
 import type { ClientTokenPayload, InternalUserTokenPayload } from "src/token/assembly-token";
@@ -99,34 +99,35 @@ export class AssemblyKit {
   readonly workspace: WorkspaceResource;
 
   constructor(options: AssemblyKitOptions) {
-    if (!options.token && !options.workspaceId) {
+    const isMarketplace: boolean = options.isMarketplaceApp ?? false;
+
+    if (isMarketplace && !options.token) {
       throw new AssemblyNoTokenError({
-        message: "Either `token` or `workspaceId` must be provided.",
+        message: "Marketplace apps require a `token`. Provide an encrypted token from Assembly.",
+      });
+    }
+    if (!isMarketplace && !options.token && !options.workspaceId) {
+      throw new AssemblyNoTokenError({
+        message: "`workspaceId` is required when `token` is not provided.",
       });
     }
 
     this.currentToken = options.token;
 
     if (options.token) {
-      // Token mode: decrypt token to get payload + let the underlying SDK build the compound key.
       this.token = new AssemblyToken({ token: options.token, apiKey: options.apiKey });
       this.payload = this.token.payload;
     } else {
-      // Workspace-only mode: no token to decrypt.
       this.token = undefined;
       this.payload = undefined;
     }
 
-    // When no token is provided, set ASSEMBLY_ENV=local so the underlying SDK
-    // accepts the raw apiKey, then pass the compound key (workspaceId/apiKey)
-    // as the apiKey directly.
-    let sdkApiKey: string = options.apiKey;
-    if (!options.token) {
-      process.env.ASSEMBLY_ENV = "local";
-      sdkApiKey = `${options.workspaceId}/${options.apiKey}`;
-    }
+    // Build compound key ourselves — no ASSEMBLY_ENV hack, no upstream init.js.
+    const compoundKey: string = this.token
+      ? this.token.buildCompoundKey({ apiKey: options.apiKey })
+      : `${options.workspaceId}/${options.apiKey}`;
 
-    const sdk = assemblyApi({ apiKey: sdkApiKey, token: options.token });
+    const sdk = initSdk({ compoundKey });
     const validate = options.validateResponses ?? true;
     const retry = options.retry === false ? false : { ...DEFAULT_RETRY, ...options.retry };
 
