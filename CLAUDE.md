@@ -5,26 +5,41 @@ TypeScript SDK for the Assembly platform. ESM-only, Node.js 18+ and Bun.
 ## Quick Start
 
 ```ts
-import { createAssemblyKit } from "@anitshrsth/assembly-kit";
+import { createAssemblyKit, KitMode } from "@anitshrsth/assembly-kit";
 
-// With token (marketplace apps, portal users)
+// Local mode (default) — only apiKey required
+const kit = createAssemblyKit({ apiKey: "your-key" });
+
+// Local mode with workspaceId — compound key: workspaceId/apiKey
+const kit = createAssemblyKit({ apiKey: "your-key", workspaceId: "ws-123" });
+
+// Local mode with token — token parsed, compound key from token payload
 const kit = createAssemblyKit({ apiKey: "your-key", token: encryptedToken });
 
-// With workspaceId only (server-to-server, local dev)
-const kit = createAssemblyKit({ apiKey: "your-key", workspaceId: "ws-123" });
+// Marketplace mode — either token or workspaceId required
+const kit = createAssemblyKit({
+  apiKey: "your-key",
+  token: encryptedToken,
+  kitMode: KitMode.Marketplace,
+});
 ```
 
-At least one of `token` or `workspaceId` is required. If both are provided, `token` takes precedence.
+- `kitMode: "local"` (default) → only `apiKey` required. `workspaceId` and `token` are optional.
+- `kitMode: "marketplace"` → either `token` or `workspaceId` must be provided.
 
 ## createAssemblyKit(options)
 
-| Option              | Type                  | Default | Description                                                                                          |
-| ------------------- | --------------------- | ------- | ---------------------------------------------------------------------------------------------------- |
-| `apiKey`            | `string`              | —       | Required. Assembly API key.                                                                          |
-| `token`             | `string`              | —       | Encrypted token. Takes precedence over `workspaceId`.                                                |
-| `workspaceId`       | `string`              | —       | Workspace ID. Required when `token` is not provided.                                                 |
-| `retry`             | `RetryOptions\|false` | `{}`    | Retry config (retries: 3, minTimeout: 1000ms, maxTimeout: 5000ms, factor: 2), or `false` to disable. |
-| `validateResponses` | `boolean`             | `true`  | Validate all API responses through Zod schemas.                                                      |
+| Option              | Type                      | Default                        | Description                                                |
+| ------------------- | ------------------------- | ------------------------------ | ---------------------------------------------------------- |
+| `apiKey`            | `string`                  | —                              | Required. Assembly API key.                                |
+| `token`             | `string`                  | —                              | Encrypted token. Takes precedence over `workspaceId`.      |
+| `workspaceId`       | `string`                  | —                              | Workspace ID. Required when `token` is not provided.       |
+| `kitMode`           | `KitMode`                 | `"local"`                      | `"local"` or `"marketplace"`. See Quick Start above.       |
+| `validateResponses` | `boolean`                 | `true`                         | Validate all API responses through Zod schemas.            |
+| `baseUrl`           | `string`                  | `https://app.assembly.com/api` | Base URL for all API requests.                             |
+| `retryCount`        | `number`                  | `2`                            | Number of retry attempts for retryable errors.             |
+| `requestsPerSecond` | `number`                  | `20`                           | Maximum requests per second (sliding-window rate limiter). |
+| `fetch`             | `typeof globalThis.fetch` | —                              | Injectable fetch function for testing.                     |
 
 ## Resource Namespaces
 

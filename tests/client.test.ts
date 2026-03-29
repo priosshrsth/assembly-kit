@@ -1,21 +1,20 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 
-process.env.ASSEMBLY_ENV = "local";
+import { AssemblyKit, createAssemblyKit } from "src/client";
+import { KitMode } from "src/constants";
+import { AssemblyNoTokenError } from "src/errors/no-token";
 
-const { mockRetrieveWorkspace } = vi.hoisted(() => ({
-  mockRetrieveWorkspace: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
-}));
-
-vi.mock("@assembly-js/node-sdk", () => ({
-  assemblyApi: () => ({
-    retrieveWorkspace: (...args: unknown[]) => mockRetrieveWorkspace(...args),
-  }),
-}));
-
+// Mock token module so it doesn't actually decrypt
 vi.mock("src/token/assembly-token", () => ({
   AssemblyToken: class {
+    currentToken: string;
     payload = { workspaceId: "ws-1" };
-    constructor(public opts: { token: unknown; apiKey: string }) {}
+    constructor(public opts: { token: unknown; apiKey: string }) {
+      this.currentToken = opts.token as string;
+    }
+    buildCompoundKey({ apiKey }: { apiKey: string }): string {
+      return `ws-1/${apiKey}`;
+    }
     ensureIsClient(): unknown {
       return this.payload;
     }
@@ -25,7 +24,14 @@ vi.mock("src/token/assembly-token", () => ({
   },
 }));
 
-import { AssemblyKit, createAssemblyKit } from "src/client";
+// --- KitMode -----------------------------------------------------------------
+
+describe("KitMode", () => {
+  it("exports Local and Marketplace values", () => {
+    expect(KitMode.Local).toBe("local");
+    expect(KitMode.Marketplace).toBe("marketplace");
+  });
+});
 
 // --- createAssemblyKit -------------------------------------------------------
 
@@ -42,127 +48,112 @@ describe("createAssemblyKit", () => {
     expect(second).not.toBe(first);
   });
 
-  it("accepts token instead of workspaceId", () => {
+  it("defaults to local mode", () => {
+    const kit = createAssemblyKit({ apiKey: "test-key", workspaceId: "ws-1" });
+    expect(kit).toBeInstanceOf(AssemblyKit);
+  });
+
+  it("accepts token in local mode (optional)", () => {
+    const kit = createAssemblyKit({
+      apiKey: "test-key",
+      workspaceId: "ws-1",
+      token: "some-token",
+    });
+    expect(kit.token?.currentToken).toBe("some-token");
+    expect(kit.token).toBeDefined();
+    expect(kit.token?.payload).toBeDefined();
+  });
+
+  it("works in local mode with only apiKey", () => {
+    const kit = createAssemblyKit({ apiKey: "test-key" });
+    expect(kit).toBeInstanceOf(AssemblyKit);
+    expect(kit.token).toBeUndefined();
+  });
+
+  it("works in local mode with token but no workspaceId", () => {
     const kit = createAssemblyKit({ apiKey: "test-key", token: "some-token" });
     expect(kit).toBeInstanceOf(AssemblyKit);
-    expect(kit.currentToken).toBe("some-token");
-  });
-
-  it("accepts both token and workspaceId (token takes precedence)", () => {
-    const kit = createAssemblyKit({ apiKey: "test-key", token: "some-token", workspaceId: "ws-1" });
-    expect(kit).toBeInstanceOf(AssemblyKit);
-    expect(kit.currentToken).toBe("some-token");
-  });
-
-  it("throws when neither token nor workspaceId is provided", () => {
-    expect(() => createAssemblyKit({ apiKey: "test-key" })).toThrow(
-      "Either `token` or `workspaceId` must be provided.",
-    );
-  });
-
-  it("sets ASSEMBLY_ENV=local when using workspaceId without token", () => {
-    createAssemblyKit({ apiKey: "test-key", workspaceId: "ws-1" });
-    expect(process.env.ASSEMBLY_ENV).toBe("local");
+    expect(kit.token?.currentToken).toBe("some-token");
   });
 });
 
-// --- Retry -------------------------------------------------------------------
+// --- Marketplace mode --------------------------------------------------------
 
-class MockApiError extends Error {
-  status: number;
-  constructor(status: number) {
-    super(`HTTP ${status}`);
-    this.status = status;
-    this.name = "MockApiError";
-  }
-}
-
-describe("retry behavior", () => {
-  it("retries on 429 and eventually succeeds", async () => {
-    let callCount = 0;
-    mockRetrieveWorkspace.mockImplementation(() => {
-      callCount += 1;
-      if (callCount <= 2) {
-        return Promise.reject(new MockApiError(429));
-      }
-      return Promise.resolve({ id: "ws-1", object: "workspace" });
-    });
-
-    const kit = new AssemblyKit({
+describe("marketplace mode", () => {
+  it("accepts token", () => {
+    const kit = createAssemblyKit({
       apiKey: "test-key",
-      workspaceId: "ws-1",
-      retry: { maxTimeout: 50, minTimeout: 10, retries: 3 },
-      validateResponses: false,
+      token: "some-token",
+      kitMode: KitMode.Marketplace,
     });
-
-    const result = await kit.workspace.retrieve();
-    expect(result).toEqual({ id: "ws-1", object: "workspace" });
-    expect(callCount).toBe(3);
+    expect(kit).toBeInstanceOf(AssemblyKit);
+    expect(kit.token?.currentToken).toBe("some-token");
   });
 
-  it("retries on 500 and eventually succeeds", async () => {
-    let callCount = 0;
-    mockRetrieveWorkspace.mockImplementation(() => {
-      callCount += 1;
-      if (callCount <= 1) {
-        return Promise.reject(new MockApiError(500));
-      }
-      return Promise.resolve({ id: "ws-2", object: "workspace" });
-    });
-
-    const kit = new AssemblyKit({
+  it("accepts workspaceId without token", () => {
+    const kit = createAssemblyKit({
       apiKey: "test-key",
       workspaceId: "ws-1",
-      retry: { maxTimeout: 50, minTimeout: 10, retries: 3 },
-      validateResponses: false,
+      kitMode: KitMode.Marketplace,
     });
-
-    const result = await kit.workspace.retrieve();
-    expect(result).toEqual({ id: "ws-2", object: "workspace" });
-    expect(callCount).toBe(2);
+    expect(kit).toBeInstanceOf(AssemblyKit);
+    expect(kit.token).toBeUndefined();
   });
 
-  it("does not retry on 400 (non-retryable)", async () => {
-    mockRetrieveWorkspace.mockImplementation(() => Promise.reject(new MockApiError(400)));
-
-    const kit = new AssemblyKit({
+  it("accepts both token and workspaceId", () => {
+    const kit = createAssemblyKit({
       apiKey: "test-key",
+      token: "some-token",
       workspaceId: "ws-1",
-      retry: { maxTimeout: 50, minTimeout: 10, retries: 3 },
-      validateResponses: false,
+      kitMode: KitMode.Marketplace,
     });
-
-    await expect(kit.workspace.retrieve()).rejects.toThrow("HTTP 400");
+    expect(kit).toBeInstanceOf(AssemblyKit);
+    expect(kit.token?.currentToken).toBe("some-token");
   });
 
-  it("throws after exhausting retries", async () => {
-    mockRetrieveWorkspace.mockImplementation(() => Promise.reject(new MockApiError(503)));
+  it("throws when neither token nor workspaceId is provided", () => {
+    expect(() =>
+      createAssemblyKit({
+        apiKey: "test-key",
+        kitMode: KitMode.Marketplace,
+      }),
+    ).toThrow("Marketplace mode requires either `token` or `workspaceId`.");
+  });
+});
 
-    const kit = new AssemblyKit({
-      apiKey: "test-key",
-      workspaceId: "ws-1",
-      retry: { maxTimeout: 50, minTimeout: 10, retries: 2 },
-      validateResponses: false,
-    });
+// --- Resource namespaces -----------------------------------------------------
 
-    await expect(kit.workspace.retrieve()).rejects.toThrow("HTTP 503");
+describe("resource namespaces", () => {
+  it("exposes all resource namespaces", () => {
+    const kit = createAssemblyKit({ apiKey: "test-key", workspaceId: "ws-1" });
+    expect(kit.companies).toBeDefined();
+    expect(kit.clients).toBeDefined();
+    expect(kit.tasks).toBeDefined();
+    expect(kit.events).toBeDefined();
+    expect(kit.workspace).toBeDefined();
+    expect(kit.notifications).toBeDefined();
+  });
+});
+
+// --- Token guards ------------------------------------------------------------
+
+describe("token guards", () => {
+  it("ensureIsClient throws when no token", () => {
+    const kit = createAssemblyKit({ apiKey: "test-key", workspaceId: "ws-1" });
+    expect(() => kit.ensureIsClient()).toThrow(AssemblyNoTokenError);
   });
 
-  it("skips retry when retry: false", async () => {
-    let callCount = 0;
-    mockRetrieveWorkspace.mockImplementation(() => {
-      callCount += 1;
-      return Promise.reject(new MockApiError(429));
-    });
+  it("ensureIsInternalUser throws when no token", () => {
+    const kit = createAssemblyKit({ apiKey: "test-key", workspaceId: "ws-1" });
+    expect(() => kit.ensureIsInternalUser()).toThrow(AssemblyNoTokenError);
+  });
 
-    const kit = new AssemblyKit({
+  it("ensureIsClient returns payload when token is present", () => {
+    const kit = createAssemblyKit({
       apiKey: "test-key",
       workspaceId: "ws-1",
-      retry: false,
-      validateResponses: false,
+      token: "some-token",
     });
-
-    await expect(kit.workspace.retrieve()).rejects.toThrow("HTTP 429");
-    expect(callCount).toBe(1);
+    expect(kit.ensureIsClient()).toEqual({ workspaceId: "ws-1" });
   });
 });

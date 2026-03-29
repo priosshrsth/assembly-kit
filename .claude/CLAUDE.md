@@ -37,14 +37,15 @@ Always keep docs in sync with the code. Do not defer documentation to a later st
 
 ### Entry Points
 
-| Export                         | Purpose                                                                                |
-| ------------------------------ | -------------------------------------------------------------------------------------- |
-| `assembly-kit`                 | `createAssemblyKit()`, error classes, token utilities, `paginate()`                    |
-| `assembly-kit/schemas`         | All Zod schemas and inferred types (no client dependency)                              |
-| `assembly-kit/app-bridge`      | Framework-agnostic `sendToParent()` postMessage utilities                              |
-| `assembly-kit/bridge-ui`       | React hooks wrapping app-bridge (`usePrimaryCta`, `useSecondaryCta`, `useActionsMenu`) |
-| `assembly-kit/assembly-client` | `createAssemblyClient()` — retry wrapper around `@assembly-js/node-sdk`                |
-| `assembly-kit/react`           | React Server Component cached singletons (`getAssemblyKit`, `getAssemblyToken`, etc.)  |
+| Export                   | Purpose                                                                                |
+| ------------------------ | -------------------------------------------------------------------------------------- |
+| `assembly-kit`           | `createAssemblyKit()`, error classes, token utilities, `paginate()`                    |
+| `assembly-kit/schemas`   | All Zod schemas and inferred types (no client dependency)                              |
+| `assembly-kit/client`    | `createAssemblyKit`, `AssemblyKit`, `AssemblyKitOptions`                               |
+| `assembly-kit/errors`    | All error classes                                                                      |
+| `assembly-kit/token`     | `AssemblyToken`, `createToken`                                                         |
+| `assembly-kit/logger`    | `createLogger`, `logger` (requires pino peer dep)                                      |
+| `assembly-kit/bridge-ui` | React hooks wrapping app-bridge (`usePrimaryCta`, `useSecondaryCta`, `useActionsMenu`) |
 
 ### Source Layer Dependency Order
 
@@ -52,14 +53,12 @@ Always keep docs in sync with the code. Do not defer documentation to a later st
 src/errors/            ← base AssemblyError class + all subclasses
 src/schemas/shared/    ← shared cross-module schemas: hex-color, membership-type, token
 src/token/             ← optional standalone utilities: parseToken(), createToken(), guards, crypto (NOT used by createAssemblyKit)
-src/transport/         ← ky HTTP client + p-throttle rate limiter + error mapper
-src/pagination/        ← paginate() AsyncIterable cursor helper
-src/modules/           ← 27 co-located modules, each with schema.ts + resource.ts + index.ts
-src/assembly-kit/      ← createAssemblyKit() factory + AssemblyKitClient class (workspaceId is required, token is opaque)
-src/assembly-client/   ← createAssemblyClient() wrapper around @assembly-js/node-sdk
-src/react/             ← React `cache` wrappers for token, assembly-kit, assembly-client
-src/app-bridge/        ← parallel track, no dependency on layers above
-src/bridge-ui/         ← depends on app-bridge only
+src/version.ts         ← SDK_VERSION constant sent with every request
+src/transport/         ← ky HTTP client + p-throttle rate limiter + error mapper + buildSearchParams + parseResponse
+src/lib/pagination/    ← paginate() Promise<T[]> cursor helper
+src/lib/modules/       ← 28 co-located modules, each with schema.ts + resource.ts + index.ts
+src/client/            ← createAssemblyKit() factory + AssemblyKit class
+src/bridge-ui/         ← React hooks wrapping @assembly-js/app-bridge (parallel track)
 ```
 
 ### Zod Version
@@ -109,11 +108,11 @@ This applies to every `export const`, `export function`, `export class`, and `ex
 
 **Rate limiting:** `p-throttle` (sliding window, 20 req/s default). Applied in ky's `beforeRequest` hook. No `bottleneck` — avoids fixed `minTime` penalty at low request rates.
 
-**No module-level singletons.** Every `createAssemblyKit()` creates a fresh transport and rate limiter. This is critical for serverless safety (Vercel, Cloudflare Workers).
+**No module-level singletons.** Every `createAssemblyKit()` creates a fresh `ky` instance, rate limiter, and transport. Fully isolated per-instance — safe for serverless (Vercel, Cloudflare Workers) and multi-workspace usage. No `@assembly-js/node-sdk` dependency.
 
-**`workspaceId` is required.** Every `createAssemblyKit()` call requires an explicit `workspaceId` parameter. The compound key is always `${workspaceId}/${apiKey}` (or `${workspaceId}/${apiKey}/${tokenId}`). Raw apiKey alone is never sent.
+**`workspaceId` or `token` is required.** The compound key is always `${workspaceId}/${apiKey}` (or `${workspaceId}/${apiKey}/${tokenId}`). Raw apiKey alone is never sent.
 
-**Token is opaque.** The SDK does **not** decrypt or parse the token. It is received as-is (required for marketplace apps, optional otherwise). Token decryption utilities (`parseToken`, `createToken`) are available as optional standalone exports for apps that need to inspect token contents.
+**Token is opaque.** The SDK does **not** decrypt or parse the token for API calls. It is received as-is. Token decryption utilities (`parseToken`, `createToken`) are available as optional standalone exports for apps that need to inspect token contents.
 
 **Token decryption utilities** (standalone, not used by `createAssemblyKit`):
 
@@ -124,14 +123,45 @@ This applies to every `export const`, `export function`, `export class`, and `ex
 
 Always import crypto as `import { ... } from 'node:crypto'` (explicit `node:` prefix for Bun + Node compat).
 
-**`isMarketplaceApp` flag:** When `true`, a token is required at `createAssemblyKit()` construction time. When `false`, token is optional but endpoints requiring user context throw `AssemblyNoTokenError` at call time.
+**`kitMode` flag:** `KitMode.Local` (default) requires `workspaceId`, token is optional. `KitMode.Marketplace` requires either `token` or `workspaceId`. Exported as an enum-like const from the client entry point.
 
 **`validateResponses` flag:** When `true` (default), all API responses are parsed through Zod schemas. Failed parses throw `AssemblyResponseParseError` (which carries the `ZodError`). Set to `false` to skip parsing for performance or trusted environments.
 
 ### Testing
 
-- `bun test` — zero real HTTP calls. The transport accepts an injectable `fetch` function; tests pass mock fetch implementations.
+- `pnpm test` (via `vp test`) — zero real HTTP calls. The transport accepts an injectable `fetch` function; tests pass mock fetch implementations.
 - Token tests use pre-generated fixtures in `tests/fixtures/tokens.ts` — real encrypted tokens produced from the known test API key, covering client user, internal user, tokenId, baseUrl, and block-aligned payloads (the Node 24 PKCS7 edge case).
+
+### Resource Pattern
+
+Each resource in `src/lib/modules/*/resource.ts` follows this pattern:
+
+```ts
+export class FooResource {
+  readonly #transport: Transport;
+  readonly #validate: boolean;
+
+  constructor({
+    transport,
+    validateResponses,
+  }: {
+    transport: Transport;
+    validateResponses: boolean;
+  }) {
+    this.#transport = transport;
+    this.#validate = validateResponses;
+  }
+
+  async list(args: ListFooArgs = {}): Promise<FoosResponse> {
+    const raw: unknown = await this.#transport.get("v1/foos", {
+      searchParams: buildSearchParams(args),
+    });
+    return parseResponse({ schema: FoosResponseSchema, data: raw, validate: this.#validate });
+  }
+}
+```
+
+Key utilities: `buildSearchParams()` (filters undefined/null), `parseResponse()` (optional Zod validation), `paginate()` (auto-pagination for `listAll`).
 
 ### Planning Docs
 

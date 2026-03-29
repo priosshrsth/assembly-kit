@@ -1,17 +1,13 @@
-import { assemblyApi } from "@assembly-js/node-sdk";
 import { AssemblyNoTokenError } from "src/errors/no-token";
-import type { TokenPayload } from "src/schemas/shared/token";
-import { AssemblyToken } from "src/token/assembly-token";
-import type { ClientTokenPayload, InternalUserTokenPayload } from "src/token/assembly-token";
 import { AppConnectionsResource } from "src/lib/modules/app-connections/resource";
 import { AppInstallsResource } from "src/lib/modules/app-installs/resource";
 import { ClientsResource } from "src/lib/modules/clients/resource";
 import { CompaniesResource } from "src/lib/modules/companies/resource";
 import { ContractTemplatesResource } from "src/lib/modules/contract-templates/resource";
-import { EventsResource } from "src/lib/modules/events/resource";
 import { ContractsResource } from "src/lib/modules/contracts/resource";
 import { CustomFieldOptionsResource } from "src/lib/modules/custom-field-options/resource";
 import { CustomFieldsResource } from "src/lib/modules/custom-fields/resource";
+import { EventsResource } from "src/lib/modules/events/resource";
 import { FileChannelsResource } from "src/lib/modules/file-channels/resource";
 import { FilesResource } from "src/lib/modules/files/resource";
 import { FormResponsesResource } from "src/lib/modules/form-responses/resource";
@@ -31,17 +27,28 @@ import { SubscriptionsResource } from "src/lib/modules/subscriptions/resource";
 import { TaskTemplatesResource } from "src/lib/modules/task-templates/resource";
 import { TasksResource } from "src/lib/modules/tasks/resource";
 import { WorkspaceResource } from "src/lib/modules/workspace/resource";
+import {
+  AssemblyToken,
+  type ClientTokenPayload,
+  type InternalUserTokenPayload,
+} from "src/token/assembly-token";
+import { createTransport } from "src/transport/http";
+import { SDK_VERSION } from "src/version";
 
-import { DEFAULT_RETRY } from "./options";
+import { KitMode } from "src/constants/kit-mode";
+
 import type { AssemblyKitOptions } from "./options";
+
+export type { AssemblyKitOptions } from "./options";
 
 /**
  * Create a new `AssemblyKit` instance. Each call produces an independent client
- * with its own credentials — safe for multi-workspace and serverless usage.
+ * with its own HTTP transport, rate limiter, and credentials — safe for
+ * multi-workspace and serverless usage.
  *
  * @example
  * ```ts
- * const kit = createAssemblyKit({ apiKey: "your-key", token: encryptedToken });
+ * const kit = createAssemblyKit({ apiKey: "your-key", workspaceId: "ws-123" });
  * const workspace = await kit.workspace.retrieve();
  * ```
  */
@@ -52,23 +59,12 @@ export function createAssemblyKit(options: AssemblyKitOptions): AssemblyKit {
 /**
  * Assembly SDK client with typed resource namespaces and Zod response validation.
  *
- * Wraps `@assembly-js/node-sdk` and organizes its flat methods into resource
- * namespaces. Each method optionally validates the response through a Zod schema.
- *
- * **Multi-workspace:** Each instance is fully independent — create one per
- * API key / workspace pair. Manage your own singletons as needed (e.g. a `Map`).
- *
- * @example
- * ```ts
- * const kit = createAssemblyKit({ apiKey: "your-key", token: "encrypted-token" });
- * ```
+ * Each instance has its own `ky`-based HTTP transport with independent
+ * rate limiting, retry, and auth headers. No shared singletons.
  */
 export class AssemblyKit {
-  readonly currentToken: string | undefined;
   /** The decrypted AssemblyToken instance, or undefined when no token was provided. */
   readonly token: AssemblyToken | undefined;
-  /** The decrypted token payload, or undefined when no token was provided. */
-  readonly payload: TokenPayload | undefined;
   readonly appConnections: AppConnectionsResource;
   readonly appInstalls: AppInstallsResource;
   readonly clients: ClientsResource;
@@ -99,88 +95,78 @@ export class AssemblyKit {
   readonly workspace: WorkspaceResource;
 
   constructor(options: AssemblyKitOptions) {
-    if (!options.token && !options.workspaceId) {
+    const mode: KitMode = options.kitMode ?? KitMode.Local;
+
+    if (mode === KitMode.Marketplace && !options.token && !options.workspaceId) {
       throw new AssemblyNoTokenError({
-        message: "Either `token` or `workspaceId` must be provided.",
+        message: "Marketplace mode requires either `token` or `workspaceId`.",
       });
     }
 
-    this.currentToken = options.token;
+    this.token = options.token
+      ? new AssemblyToken({ token: options.token, apiKey: options.apiKey })
+      : undefined;
 
-    if (options.token) {
-      // Token mode: decrypt token to get payload + let the underlying SDK build the compound key.
-      this.token = new AssemblyToken({ token: options.token, apiKey: options.apiKey });
-      this.payload = this.token.payload;
+    let compoundKey: string;
+    if (this.token) {
+      compoundKey = this.token.buildCompoundKey({ apiKey: options.apiKey });
+    } else if (options.workspaceId) {
+      compoundKey = `${options.workspaceId}/${options.apiKey}`;
     } else {
-      // Workspace-only mode: no token to decrypt.
-      this.token = undefined;
-      this.payload = undefined;
+      compoundKey = options.apiKey;
     }
 
-    // When no token is provided, set ASSEMBLY_ENV=local so the underlying SDK
-    // accepts the raw apiKey, then pass the compound key (workspaceId/apiKey)
-    // as the apiKey directly.
-    let sdkApiKey: string = options.apiKey;
-    if (!options.token) {
-      process.env.ASSEMBLY_ENV = "local";
-      sdkApiKey = `${options.workspaceId}/${options.apiKey}`;
-    }
+    const transport = createTransport({
+      baseUrl: options.baseUrl,
+      compoundKey,
+      fetch: options.fetch,
+      requestsPerSecond: options.requestsPerSecond,
+      retryCount: options.retryCount,
+      sdkVersion: SDK_VERSION,
+    });
 
-    const sdk = assemblyApi({ apiKey: sdkApiKey, token: options.token });
-    const validate = options.validateResponses ?? true;
-    const retry = options.retry === false ? false : { ...DEFAULT_RETRY, ...options.retry };
+    const validate: boolean = options.validateResponses ?? true;
+    const ctx = { transport, validateResponses: validate };
 
-    this.appConnections = new AppConnectionsResource(sdk, validate, retry);
-    this.appInstalls = new AppInstallsResource(sdk, validate, retry);
-    this.clients = new ClientsResource(sdk, validate, retry);
-    this.companies = new CompaniesResource(sdk, validate, retry);
-    this.contractTemplates = new ContractTemplatesResource(sdk, validate, retry);
-    this.contracts = new ContractsResource(sdk, validate, retry);
-    this.customFieldOptions = new CustomFieldOptionsResource(sdk, validate, retry);
-    this.customFields = new CustomFieldsResource(sdk, validate, retry);
-    this.events = new EventsResource(sdk, validate, retry);
-    this.fileChannels = new FileChannelsResource(sdk, validate, retry);
-    this.files = new FilesResource(sdk, validate, retry);
-    this.formResponses = new FormResponsesResource(sdk, validate, retry);
-    this.forms = new FormsResource(sdk, validate, retry);
-    this.internalUsers = new InternalUsersResource(sdk, validate, retry);
-    this.invoiceTemplates = new InvoiceTemplatesResource(sdk, validate, retry);
-    this.invoices = new InvoicesResource(sdk, validate, retry);
-    this.messageChannels = new MessageChannelsResource(sdk, validate, retry);
-    this.messages = new MessagesResource(sdk, validate, retry);
-    this.notes = new NotesResource(sdk, validate, retry);
-    this.notifications = new NotificationsResource(sdk, validate, retry);
-    this.payments = new PaymentsResource(sdk, validate, retry);
-    this.prices = new PricesResource(sdk, validate, retry);
-    this.products = new ProductsResource(sdk, validate, retry);
-    this.subscriptionTemplates = new SubscriptionTemplatesResource(sdk, validate, retry);
-    this.subscriptions = new SubscriptionsResource(sdk, validate, retry);
-    this.taskTemplates = new TaskTemplatesResource(sdk, validate, retry);
-    this.tasks = new TasksResource(sdk, validate, retry);
-    this.workspace = new WorkspaceResource(sdk, validate, retry);
+    this.appConnections = new AppConnectionsResource(ctx);
+    this.appInstalls = new AppInstallsResource(ctx);
+    this.clients = new ClientsResource(ctx);
+    this.companies = new CompaniesResource(ctx);
+    this.contractTemplates = new ContractTemplatesResource(ctx);
+    this.contracts = new ContractsResource(ctx);
+    this.customFieldOptions = new CustomFieldOptionsResource(ctx);
+    this.customFields = new CustomFieldsResource(ctx);
+    this.events = new EventsResource(ctx);
+    this.fileChannels = new FileChannelsResource(ctx);
+    this.files = new FilesResource(ctx);
+    this.formResponses = new FormResponsesResource(ctx);
+    this.forms = new FormsResource(ctx);
+    this.internalUsers = new InternalUsersResource(ctx);
+    this.invoiceTemplates = new InvoiceTemplatesResource(ctx);
+    this.invoices = new InvoicesResource(ctx);
+    this.messageChannels = new MessageChannelsResource(ctx);
+    this.messages = new MessagesResource(ctx);
+    this.notes = new NotesResource(ctx);
+    this.notifications = new NotificationsResource(ctx);
+    this.payments = new PaymentsResource(ctx);
+    this.prices = new PricesResource(ctx);
+    this.products = new ProductsResource(ctx);
+    this.subscriptionTemplates = new SubscriptionTemplatesResource(ctx);
+    this.subscriptions = new SubscriptionsResource(ctx);
+    this.taskTemplates = new TaskTemplatesResource(ctx);
+    this.tasks = new TasksResource(ctx);
+    this.workspace = new WorkspaceResource(ctx);
   }
 
-  /**
-   * Assert that a token was provided and belongs to a client user.
-   * @throws {AssemblyNoTokenError} If no token was provided.
-   * @throws {AssemblyUnauthorizedError} If the token is not a client token.
-   */
+  /** Assert that a token was provided and belongs to a client user. */
   ensureIsClient(): ClientTokenPayload {
-    if (!this.token) {
-      throw new AssemblyNoTokenError();
-    }
+    if (!this.token) throw new AssemblyNoTokenError();
     return this.token.ensureIsClient();
   }
 
-  /**
-   * Assert that a token was provided and belongs to an internal user.
-   * @throws {AssemblyNoTokenError} If no token was provided.
-   * @throws {AssemblyUnauthorizedError} If the token is not an internal user token.
-   */
+  /** Assert that a token was provided and belongs to an internal user. */
   ensureIsInternalUser(): InternalUserTokenPayload {
-    if (!this.token) {
-      throw new AssemblyNoTokenError();
-    }
+    if (!this.token) throw new AssemblyNoTokenError();
     return this.token.ensureIsInternalUser();
   }
 }
