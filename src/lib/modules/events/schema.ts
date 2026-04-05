@@ -4,9 +4,12 @@ import { z } from "zod";
 // Enums
 // ---------------------------------------------------------------------------
 
-export type EventActorType = "client" | "internalUser";
+export type EventActorType = "clientUser" | "internalUser";
 
-export const EventActorTypeSchema: z.ZodType<EventActorType> = z.enum(["client", "internalUser"]);
+export const EventActorTypeSchema: z.ZodType<EventActorType> = z.enum([
+  "clientUser",
+  "internalUser",
+]);
 
 export type EventSource = "automation" | "platform" | "system" | "web";
 
@@ -76,18 +79,44 @@ export const AuditLogEventsResponseSchema: z.ZodType<AuditLogEventsResponse> = z
 // Request types
 // ---------------------------------------------------------------------------
 
-export interface EventCreateRequest {
+export interface ClientUserEventCreateRequest {
   actorId: string;
+  actorType: "clientUser";
+  companyId: string;
+  context: Record<string, unknown>;
+  eventDescription: string;
+  eventType: string;
+}
+
+export interface InternalUserEventCreateRequest {
+  actorId: string;
+  actorType: "internalUser";
   companyId?: string;
   context: Record<string, unknown>;
   eventDescription: string;
   eventType: string;
 }
 
-export const EventCreateRequestSchema: z.ZodType<EventCreateRequest> = z.object({
-  actorId: z.string(),
-  companyId: z.string().optional(),
-  context: z.record(z.string(), z.unknown()),
-  eventDescription: z.string().max(500),
-  eventType: z.string().max(100),
-});
+export type EventCreateRequest = ClientUserEventCreateRequest | InternalUserEventCreateRequest;
+
+export const EventCreateRequestSchema: z.ZodType<EventCreateRequest> = z.discriminatedUnion(
+  "actorType",
+  [
+    z.object({
+      actorId: z.string(),
+      actorType: z.literal("clientUser"),
+      companyId: z.string(),
+      context: z.record(z.string(), z.unknown()),
+      eventDescription: z.string().max(500),
+      eventType: z.string().max(100),
+    }),
+    z.object({
+      actorId: z.string(),
+      actorType: z.literal("internalUser"),
+      companyId: z.string().optional(),
+      context: z.record(z.string(), z.unknown()),
+      eventDescription: z.string().max(500),
+      eventType: z.string().max(100),
+    }),
+  ],
+);
