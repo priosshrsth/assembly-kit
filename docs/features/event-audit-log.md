@@ -20,7 +20,8 @@ Creates a new audit log event. The event is processed asynchronously (queued), b
 | ------------------ | ------ | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `eventType`        | string | Yes         | Custom event type name (max 100 chars). Alphanumeric characters only — special characters and spaces are stripped. Stored with a `customEvent.` prefix (e.g., `"UserSignup"` becomes `"customEvent.UserSignup"`). |
 | `actorId`          | string | Yes         | The ID of the user performing the action. Must be a valid, enabled user in your workspace.                                                                                                                        |
-| `companyId`        | string | Conditional | Required if `actorId` belongs to a client user. The client must belong to this company.                                                                                                                           |
+| `actorType`        | string | Yes         | `"clientUser"` or `"internalUser"`.                                                                                                                                                                               |
+| `companyId`        | string | Conditional | Required if `actorType` is `"clientUser"`. The client must belong to this company.                                                                                                                                |
 | `eventDescription` | string | Yes         | Human-readable description of the event (max 500 chars).                                                                                                                                                          |
 | `context`          | object | Yes         | Arbitrary JSON object with additional event data.                                                                                                                                                                 |
 
@@ -33,6 +34,7 @@ curl -X POST https://api.assembly.com/v1/events \
   -d '{
     "eventType": "InvoiceApproved",
     "actorId": "b2c3d4e5-f6a7-8901-bcde-f23456789012",
+    "actorType": "internalUser",
     "eventDescription": "Invoice #1042 was approved by the account manager",
     "context": {
       "invoiceId": "inv_1042",
@@ -77,6 +79,7 @@ curl -X POST https://api.assembly.com/v1/events \
   -d '{
     "eventType": "DocumentViewed",
     "actorId": "c3d4e5f6-a7b8-9012-cdef-345678901234",
+    "actorType": "clientUser",
     "companyId": "d4e5f6a7-b890-1234-5678-abcdef012345",
     "eventDescription": "Client viewed the Q1 report",
     "context": {
@@ -223,7 +226,7 @@ curl -X GET "https://api.assembly.com/v1/events/a1b2c3d4-e5f6-7890-abcd-ef123456
 | `id`               | string         | Unique event ID (UUID).                                                                                                                               |
 | `object`           | string         | Always `"auditLog"`.                                                                                                                                  |
 | `actorId`          | string         | ID of the user who performed the action.                                                                                                              |
-| `actorType`        | string         | `"internalUser"` or `"client"`.                                                                                                                       |
+| `actorType`        | string         | `"internalUser"` or `"clientUser"`.                                                                                                                   |
 | `companyId`        | string or null | Company ID if the actor is a client user.                                                                                                             |
 | `source`           | string         | Where the event originated: `"platform"` (API-created), `"web"` (dashboard), `"automation"`, or `"system"`.                                           |
 | `eventType`        | string         | The event type. Custom events are prefixed with `customEvent.` (e.g., `customEvent.InvoiceApproved`). System events use predefined types (see below). |
